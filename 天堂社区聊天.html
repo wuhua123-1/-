@@ -1224,23 +1224,39 @@ function saveUserData() {
             container.innerHTML = html;
         }
 
-        window.registerUser = function() {
-            var inputId = document.getElementById('registerIdInput').value.trim();
-            var errEl = document.getElementById('registerError');
-            if (!inputId || isNaN(inputId) || inputId.length < 1) { errEl.textContent = '请输入有效的数字ID';
-                errEl.style.display = 'block'; return; }
-            db.ref('tth_registered_ids/' + inputId).once('value', function(snap) {
-                if (snap.exists()) { errEl.textContent = '该ID已被注册';
-                    errEl.style.display = 'block'; } else { userId = inputId;
-                    localStorage.setItem('tth_user_id', userId);
-                    db.ref('tth_registered_ids/' + userId).set(true);
-                    userData = { nickname: '天堂用户', signature: '', avatar: '', thId: userId };
-                    db.ref('tth_users/' + userId).set(userData);
-                    document.getElementById('registerOverlay').style.display = 'none';
-                    loadUserData();
-                    loadFriends(); }
-            });
-        };
+window.registerUser = function() {
+    var inputId = document.getElementById('registerIdInput').value.trim();
+    var errEl = document.getElementById('registerError');
+    if (!inputId || isNaN(inputId) || inputId.length < 1) { 
+        errEl.textContent = '请输入有效的数字ID';
+        errEl.style.display = 'block'; 
+        return; 
+    }
+    errEl.style.display = 'none';
+    
+    db.ref('tth_registered_ids/' + inputId).once('value').then(function(snap) {
+        if (snap.exists()) { 
+            userId = inputId;
+            localStorage.setItem('tth_user_id', userId);
+            document.getElementById('registerOverlay').style.display = 'none';
+            loadUserData();
+            loadFriends();
+        } else { 
+            userId = inputId;
+            localStorage.setItem('tth_user_id', userId);
+            db.ref('tth_registered_ids/' + userId).set(true);
+            userData = { nickname: '天堂用户', signature: '', avatar: '', thId: userId };
+            db.ref('tth_users/' + userId).set(userData);
+            document.getElementById('registerOverlay').style.display = 'none';
+            loadUserData();
+            loadFriends();
+        }
+    }).catch(function(err) {
+        errEl.textContent = '网络错误，请重试';
+        errEl.style.display = 'block';
+        console.error(err);
+    });
+};;
 
         function navigateTo(pageId, animation) {
             var oldPage = document.querySelector('.page.active');
