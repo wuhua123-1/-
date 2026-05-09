@@ -1014,17 +1014,21 @@
         </div>
 
         <!-- 聊天页 -->
-        <div class="page chat-page" id="chatPage">
-            <div class="chat-header">
-                <div class="chat-back" onclick="goBack()">←</div>
-                <div class="chat-title" id="chatTitle">雾化机器人</div>
-            </div>
-            <div class="chat-messages" id="chatMessages"></div>
-            <div class="chat-input-area">
-                <input type="text" class="chat-input" id="chatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendMessage()">
-                <button class="chat-send-btn" onclick="sendMessage()">发送</button>
-            </div>
-        </div>
+   <!-- 聊天页 -->
+<div class="page chat-page" id="chatPage">
+    <div class="chat-header">
+        <div class="chat-back" onclick="goBack()">←</div>
+        <div class="chat-title" id="chatTitle">雾化机器人</div>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-area">
+        <input type="file" accept="image/*" id="chatImageInput" style="display:none;" onchange="sendImage()">
+        <button style="..." onclick="...">+</button>
+        <input type="text" class="chat-input" id="chatInput" ...>
+        <button class="chat-send-btn" onclick="sendMessage()">发送</button>
+    </div>
+</div>
+        
 
         <!-- 个人主页（左对齐） -->
         <div class="page profile-page" id="profilePage">
@@ -1092,9 +1096,10 @@
             <span class="item-right" id="userProfileSignature">这个用户很懒，什么都没写</span>
         </div>
     </div>
-    <div class="user-profile-add-btn" id="userProfileAddBtn" style="text-align:center;padding:20px;">
-        <button onclick="addFriend()" style="padding:10px 40px;background:#12b7f5;color:#fff;border:none;border-radius:20px;font-size:15px;">加好友</button>
-    </div>
+<div class="user-profile-add-btn" id="userProfileAddBtn" style="text-align:center;padding:20px;">
+    <button onclick="addFriend()" style="padding:10px 40px;background:#12b7f5;color:#fff;border:none;border-radius:20px;font-size:15px;">加好友</button>
+    <button onclick="sendMessageToUser()" style="padding:10px 40px;background:#07c160;color:#fff;border:none;border-radius:20px;font-size:15px;margin-top:8px;">发消息</button>
+</div>
 </div>
 
         <!-- 搜索页 -->
@@ -1165,7 +1170,6 @@
                 loadUserData();
                 loadFriends();
             }
-            loadChatMessages();
         }
 
         function loadUserData() {
@@ -1299,14 +1303,13 @@ window.registerUser = function() {
             navigateTo(prevPageId, 'slideBack');
         }
 
-        function showAddMenu() {
-            var overlay = document.createElement('div');
-            overlay.className = 'popup-menu-overlay';
-            overlay.innerHTML =
-                '<div class="popup-menu"><div class="popup-menu-item" onclick="this.parentElement.parentElement.remove();navigateTo(\'searchPage\',\'slideInRight\')">➕ 加好友</div></div>';
-            document.body.appendChild(overlay);
-            overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-        }
+function showAddMenu() {
+    var overlay = document.createElement('div');
+    overlay.className = 'popup-menu-overlay';
+    overlay.innerHTML = '<div class="popup-menu"><div class="popup-menu-item" onclick="this.parentElement.parentElement.remove();navigateTo(\'searchPage\',\'slideInRight\')">➕ 加好友</div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
 
         function openProfile() { updateAllUI();
             navigateTo('profilePage', 'slideInRight'); }
@@ -1394,18 +1397,30 @@ function renderChatMessages() {
         if (isMine) {
             avatar.innerHTML = userData.avatar ? '<img src="' + userData.avatar + '">' : '👤';
         } else {
-            if (msg.from === 'robot') {
-                avatar.textContent = '🤖';
-            } else {
-                db.ref('tth_users/' + msg.from).once('value', function(snap) {
-                    var u = snap.val() || {};
-                    avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
-                });
+    if (msg.from === 'robot') {
+        avatar.textContent = '🤖';
+    } else {
+        // 用 on 实时监听对方头像和名字变化
+        avatar.setAttribute('data-uid', msg.from);
+        db.ref('tth_users/' + msg.from).on('value', function(snap) {
+            var u = snap.val() || {};
+            avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
+            // 同时更新消息列表里的好友信息
+            if (friends[msg.from]) {
+                friends[msg.from].nickname = u.nickname || msg.from;
+                friends[msg.from].avatar = u.avatar || '';
+                renderMsgList();
             }
-        }
+        });
+    }
+}
         var bubble = document.createElement('div');
-        bubble.className = 'chat-msg-bubble';
-        bubble.textContent = msg.text;
+bubble.className = 'chat-msg-bubble';
+if (msg.type === 'image') {
+    bubble.innerHTML = '<img src="' + msg.text + '" style="max-width:200px;border-radius:8px;">';
+} else {
+    bubble.textContent = msg.text;
+}
 if (isMine) {
     row.appendChild(avatar);
     row.appendChild(bubble);
@@ -1424,22 +1439,44 @@ function sendMessage() {
     if (!text) return;
     input.value = '';
     
-    // 生成唯一聊天路径（双方ID排序，保证两人使用同一个聊天节点）
     var chatPath = [userId, currentChat].sort().join('_');
-    
     var key = 'msg_' + Date.now();
     var msgData = { from: userId, text: text, time: Date.now(), type: 'text' };
-    db.ref('tth_chat/' + chatPath + '/' + key).set(msgData);
+    
+    // 先本地显示消息
+    if (!chatMessages[currentChat]) chatMessages[currentChat] = {};
+    chatMessages[currentChat][key] = msgData;
     renderChatMessages();
+    
+    // 再上传到服务器
+    db.ref('tth_chat/' + chatPath + '/' + key).set(msgData);
     
     if (currentChat === 'robot') {
         setTimeout(function() {
             var rk = 'reply_' + Date.now();
             var rd = { from: 'robot', text: getRobotReply(text), time: Date.now(), type: 'text' };
-            db.ref('tth_chat/' + chatPath + '/' + rk).set(rd);
+            chatMessages[currentChat][rk] = rd;
             renderChatMessages();
-        }, 800);
+            db.ref('tth_chat/' + chatPath + '/' + rk).set(rd);
+        }, 500);
     }
+}
+
+function sendImage() {
+    var file = document.getElementById('chatImageInput').files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var chatPath = [userId, currentChat].sort().join('_');
+        var key = 'img_' + Date.now();
+        var msgData = { from: userId, text: e.target.result, time: Date.now(), type: 'image' };
+        if (!chatMessages[currentChat]) chatMessages[currentChat] = {};
+        chatMessages[currentChat][key] = msgData;
+        renderChatMessages();
+        db.ref('tth_chat/' + chatPath + '/' + key).set(msgData);
+    };
+    reader.readAsDataURL(file);
+    document.getElementById('chatImageInput').value = '';
 }
 
         function getRobotReply(msg) {
@@ -1494,17 +1531,46 @@ function doSearch() {
             }).join('');
         }
 
- function viewUser(uid) {
+function viewUser(uid) {
     db.ref('tth_users/' + uid).on('value', function(snap) {
         var u = snap.val() || {};
         viewingUser = uid;
         document.getElementById('userProfileAvatar').innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
         document.getElementById('userProfileName').textContent = u.nickname || uid;
-        document.getElementById('userProfileThId').textContent = '天堂号：' + uid;  
-        document.getElementById('userProfileAddBtn').style.display = friends[uid] ? 'none' : 'block';
+        document.getElementById('userProfileThId').textContent = '天堂号：' + uid;
         document.getElementById('userProfileSignature').textContent = u.signature || '这个用户很懒，什么都没写';
+        
+        // 好友才显示发消息按钮
+        document.getElementById('userProfileAddBtn').style.display = 'block';
+        var addBtn = document.getElementById('userProfileAddBtn').querySelector('button:first-child');
+        var msgBtn = document.getElementById('userProfileAddBtn').querySelector('button:last-child');
+        if (friends[uid]) {
+            addBtn.style.display = 'none';
+            msgBtn.style.display = 'inline-block';
+        } else {
+            addBtn.style.display = 'inline-block';
+            msgBtn.style.display = 'none';
+        }
     });
     navigateTo('userProfilePage', 'slideInRight');
+}
+
+window.sendMessageToUser = function() {
+    if (!viewingUser) return;
+    // 如果不是好友，先自动加好友
+    if (!friends[viewingUser]) {
+        addFriendSilent(viewingUser);
+    }
+    openChat(viewingUser);
+};
+
+function addFriendSilent(uid) {
+    db.ref('tth_users/' + uid).once('value', function(snap) {
+        var u = snap.val() || {};
+        friends[uid] = { nickname: u.nickname || uid, avatar: u.avatar || '', signature: u.signature || '', thId: uid };
+        db.ref('tth_friends/' + userId + '/' + uid).set(friends[uid]);
+        db.ref('tth_friends/' + uid + '/' + userId).set({ nickname: userData.nickname || userId, avatar: userData.avatar || '', signature: userData.signature || '', thId: userId });
+    });
 }
 
         function goBackFromUserProfile() { viewingUser = null;
