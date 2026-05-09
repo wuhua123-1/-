@@ -7,6 +7,64 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
+    /* ========== VIP/SVIP 特效 ========== */
+/* ========== VIP/SVIP 特效 ========== */
+.vip-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: linear-gradient(135deg, #1a1a0e, #0d0d05);
+    color: #d4a843;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-weight: 700;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(212,168,67,0.5);
+}
+.vip-badge::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -100%;
+    width: 30%;
+    height: 200%;
+    background: linear-gradient(90deg, transparent, rgba(255,215,0,0.5), transparent);
+    transform: skewX(-25deg);
+    animation: svipScan 2s ease-in-out infinite;
+}
+@keyframes svipScan {
+    0% { left: -100%; }
+    50% { left: 150%; }
+    100% { left: 150%; }
+}
+.vip-text {
+    background: linear-gradient(90deg, #d4a843, #f0d078, #d4a843);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: svipTextFlow 2s linear infinite;
+    position: relative;
+    z-index: 1;
+}
+@keyframes svipTextFlow {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
+}
+@keyframes 靓号Scan {
+    0% { left: -100%; }
+    50% { left: 100%; }
+    100% { left: 100%; }
+}
+.online-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 3px;
+}
         :root {
             --bg: #f5f5f5;
             --white: #fff;
@@ -1022,11 +1080,11 @@
     </div>
     <div class="chat-messages" id="chatMessages"></div>
         <div class="chat-input-area">
-        <input type="file" accept="image/*" id="chatImageInput" style="display:none;" onchange="sendImage()">
-        <button style="..." onclick="...">+</button>
-        <input type="text" class="chat-input" id="chatInput" ...>
-        <button class="chat-send-btn" onclick="sendMessage()">发送</button>
-    </div>
+    <input type="file" accept="image/*" id="chatImageInput" style="display:none;" onchange="sendImage()">
+    <button style="width:36px;height:36px;border-radius:50%;background:#f0f0f0;border:none;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" onclick="document.getElementById('chatImageInput').click()">+</button>
+    <input type="text" class="chat-input" id="chatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendMessage()">
+    <button class="chat-send-btn" onclick="sendMessage()">发送</button>
+</div>
 </div>
         
 
@@ -1038,6 +1096,7 @@
                 <div class="profile-header-info">
                     <div class="profile-name" id="profileName" onclick="editProfile()">天堂用户</div>
                     <div class="profile-th-id" id="profileThId">天堂号：未设置</div>
+                    <div id="vipArea" style="margin-top:4px;"></div>
                     <div class="profile-tags"><span class="profile-tag" onclick="editProfile()">+ 添加标签</span></div>
                 </div>
             </div>
@@ -1072,9 +1131,10 @@
                     <div class="profile-space-grid-item"></div><div class="profile-space-grid-item"></div>
                 </div>
             </div>
-            <div class="profile-edit-btn">
-                <button onclick="editProfile()">编辑资料</button>
-            </div>
+           <div class="profile-edit-btn">
+    <button onclick="editProfile()">编辑资料</button>
+    <button onclick="setVIP()" style="margin-top:8px;background:linear-gradient(135deg,#ff0080,#ff8c00);">设置SVIP</button>
+</div>
         </div>
 
         <!-- 他人主页 -->
@@ -1164,29 +1224,45 @@
         let viewingUser = null;
         let pageHistory = [];
 
-        function init() {
-            if (userId) {
-                document.getElementById('registerOverlay').style.display = 'none';
-                loadUserData();
-                loadFriends();
-            }
-        }
+function init() {
+    if (userId) {
+        document.getElementById('registerOverlay').style.display = 'none';
+        loadUserData();
+        loadFriends();
+        startOnlineListener();  // 加这行
+    }
+}
 
-        function loadUserData() {
-            if (!userId) return;
-            db.ref('tth_users/' + userId).on('value', function(snap) {
-                userData = snap.val() || {};
-                if (!userData.nickname) {
-                    userData.nickname = '天堂用户';
-                    userData.signature = '';
-                    userData.avatar = '';
-                    userData.thId = userId;
-                    db.ref('tth_users/' + userId).set(userData);
-                }
-                userData.thId = userId;
-                updateAllUI();
-            });
+
+function loadUserData() {
+    if (!userId) return;
+    // 先用本地数据显示
+    var cached = localStorage.getItem('tth_user_data_' + userId);
+    if (cached) {
+        userData = JSON.parse(cached);
+        updateAllUI();
+    }
+    // 再从服务器加载
+    db.ref('tth_users/' + userId).on('value', function(snap) {
+        userData = snap.val() || {};
+        if (!userData.nickname) {
+            userData.nickname = '天堂用户';
+            userData.signature = '';
+            userData.avatar = '';
+            userData.isVIP = false;
+            userData.thId = userId;
+            db.ref('tth_users/' + userId).set(userData);
         }
+        userData.thId = userId;
+        localStorage.setItem('tth_user_data_' + userId, JSON.stringify(userData));
+        updateAllUI();
+    });
+    // 心跳
+    db.ref('tth_users/' + userId + '/lastOnline').set(Date.now());
+    setInterval(function() {
+        db.ref('tth_users/' + userId + '/lastOnline').set(Date.now());
+    }, 1000);
+}
 
 function saveUserData() {
     if (!userId) return;
@@ -1209,7 +1285,7 @@ function saveUserData() {
             document.getElementById('navNickname').textContent = name;
             document.getElementById('profileName').textContent = name;
             document.getElementById('spaceName').textContent = name;
-            document.getElementById('profileThId').textContent = '天堂号：' + (userId || '未设置');
+            document.getElementById('profileThId').innerHTML = '天堂号：<span style="display:inline-flex;align-items:center;gap:2px;background:linear-gradient(135deg,#1a1a0e,#0d0d05);padding:3px 8px;border-radius:14px;border:1px solid rgba(212,168,67,0.4);position:relative;overflow:hidden;vertical-align:middle;"><span style="background:#d4a843;color:#0d0d05;padding:1px 5px;border-radius:10px;font-weight:700;font-size:9px;flex-shrink:0;line-height:1.2;">靓</span><span style="color:rgba(212,168,67,0.4);font-size:10px;margin:0 1px;">/</span><span style="color:#d4a843;font-weight:600;font-size:11px;letter-spacing:0.3px;">' + (userId || '未设置') + '</span><span style="position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,215,0,0.25),transparent);animation:靓号Scan 3s ease-in-out infinite;"></span></span>';
             if (avatarUrl) {
                 document.getElementById('navAvatar').innerHTML = '<img src="' + avatarUrl + '">';
                 document.getElementById('profileAvatar').innerHTML = '<img src="' + avatarUrl + '">';
@@ -1223,17 +1299,36 @@ function saveUserData() {
                 sigEl.textContent = '编辑个签，展示我的独特态度。';
                 sigEl.classList.remove('has-value');
             }
+            updateVIPDisplay();
         }
 
-        function renderMsgList() {
-            var container = document.getElementById('msgList');
-            var html = '<div class="msg-item" onclick="openChat(\'robot\')"><div class="msg-item-avatar">🤖</div><div class="msg-item-info"><div class="msg-item-name">雾化机器人</div><div class="msg-item-preview">你好，我是雾化机器人~</div></div><div class="msg-item-time"></div></div>';
-            Object.keys(friends).forEach(function(fid) {
-                var f = friends[fid];
-                html += '<div class="msg-item" onclick="openChat(\'' + fid + '\')"><div class="msg-item-avatar">' + (f.avatar ? '<img src="' + f.avatar + '">' : '👤') + '</div><div class="msg-item-info"><div class="msg-item-name">' + (f.nickname || fid) + '</div><div class="msg-item-preview"></div></div><div class="msg-item-time"></div></div>';
-            });
-            container.innerHTML = html;
-        }
+function renderMsgList() {
+    var container = document.getElementById('msgList');
+    var html = '<div class="msg-item" onclick="openChat(\'robot\')"><div class="msg-item-avatar">🤖</div><div class="msg-item-info"><div class="msg-item-name">雾化机器人</div><div class="msg-item-preview">你好，我是雾化机器人~</div></div><div class="msg-item-time"></div></div>';
+    Object.keys(friends).forEach(function(fid) {
+        var f = friends[fid];
+        html += '<div class="msg-item" onclick="openChat(\'' + fid + '\')"><div class="msg-item-avatar">' + (f.avatar ? '<img src="' + f.avatar + '">' : '👤') + '</div><div class="msg-item-info"><div class="msg-item-name">' + (f.nickname || fid) + '</div><div class="msg-item-preview" id="status_' + fid + '">加载中...</div></div><div class="msg-item-time"></div></div>';
+    });
+    container.innerHTML = html;
+}
+
+// 一次性监听所有好友在线状态，不再单个请求
+function startOnlineListener() {
+    db.ref('tth_users').on('value', function(snap) {
+        var users = snap.val() || {};
+        Object.keys(friends).forEach(function(fid) {
+            var last = (users[fid] && users[fid].lastOnline) || 0;
+            var isOnline = (Date.now() - last) < 3000;
+            var el = document.getElementById('status_' + fid);
+            if (el) {
+                el.innerHTML = '<span class="online-dot" style="background:' + (isOnline ? '#07c160' : '#f55') + ';"></span>' + (isOnline ? '在线' : '离线');
+            }
+        });
+    });
+}
+
+
+
 
 window.registerUser = function() {
     var inputId = document.getElementById('registerIdInput').value.trim();
@@ -1256,7 +1351,7 @@ window.registerUser = function() {
             userId = inputId;
             localStorage.setItem('tth_user_id', userId);
             db.ref('tth_registered_ids/' + userId).set(true);
-            userData = { nickname: '天堂用户', signature: '', avatar: '', thId: userId };
+            userData = { nickname: '天堂用户', signature: '', avatar: '', thId: userId, isVIP: false };
             db.ref('tth_users/' + userId).set(userData);
             document.getElementById('registerOverlay').style.display = 'none';
             loadUserData();
@@ -1269,39 +1364,57 @@ window.registerUser = function() {
     });
 };;
 
-        function navigateTo(pageId, animation) {
-            var oldPage = document.querySelector('.page.active');
-            var newPage = document.getElementById(pageId);
-            if (oldPage === newPage) return;
-            pageHistory.push(oldPage ? oldPage.id : null);
+function navigateTo(pageId, animation) {
+    var oldPage = document.querySelector('.page.active');
+    var newPage = document.getElementById(pageId);
+    if (oldPage === newPage) return;
+    pageHistory.push(oldPage ? oldPage.id : null);
 
-            if (animation === 'slideInRight') {
-                if (oldPage) { oldPage.classList.add('slide-out');
-                    oldPage.addEventListener('animationend', function() { oldPage.classList.remove('active',
-                            'slide-out');
-                        oldPage.style.display = 'none'; }, { once: true }); }
-                newPage.classList.add('slide-in');
-                newPage.addEventListener('animationend', function() { newPage.classList.remove('slide-in');
-                    newPage.classList.add('active'); }, { once: true });
-            } else if (animation === 'slideBack') {
-                if (oldPage) { oldPage.style.display = 'none';
-                    oldPage.classList.remove('active'); }
-                newPage.classList.add('slide-back');
-                newPage.addEventListener('animationend', function() { newPage.classList.remove('slide-back');
-                    newPage.classList.add('active'); }, { once: true });
-            } else {
-                if (oldPage) { oldPage.classList.remove('active');
-                    oldPage.style.display = 'none'; }
-                newPage.classList.add('active');
-                newPage.style.display = 'flex';
-            }
-        }
+    // 清理所有页面的动画class
+    document.querySelectorAll('.page').forEach(function(p) {
+        p.classList.remove('slide-in', 'slide-out', 'slide-back');
+    });
 
-        function goBack() {
-            var prevPageId = pageHistory.pop();
-            if (!prevPageId) { navigateTo('msgListPage', 'slideBack'); return; }
-            navigateTo(prevPageId, 'slideBack');
+    if (animation === 'slideInRight') {
+        if (oldPage) {
+            oldPage.classList.add('slide-out');
+            oldPage.addEventListener('animationend', function() {
+                oldPage.classList.remove('active', 'slide-out');
+                oldPage.style.display = 'none';
+            }, { once: true });
         }
+        newPage.style.display = 'flex';
+        newPage.classList.add('slide-in');
+        newPage.addEventListener('animationend', function() {
+            newPage.classList.remove('slide-in');
+            newPage.classList.add('active');
+        }, { once: true });
+    } else if (animation === 'slideBack') {
+        if (oldPage) {
+            oldPage.classList.remove('active');
+            oldPage.style.display = 'none';
+        }
+        newPage.style.display = 'flex';
+        newPage.classList.add('active');
+    } else {
+        if (oldPage) {
+            oldPage.classList.remove('active');
+            oldPage.style.display = 'none';
+        }
+        newPage.classList.add('active');
+        newPage.style.display = 'flex';
+    }
+}
+
+function goBack() {
+    // 清理重复的连续相同页面
+    while (pageHistory.length > 1 && pageHistory[pageHistory.length - 1] === pageHistory[pageHistory.length - 2]) {
+        pageHistory.pop();
+    }
+    var prevPageId = pageHistory.pop();
+    if (!prevPageId) { navigateTo('msgListPage', 'slideBack'); return; }
+    navigateTo(prevPageId, 'slideBack');
+}
 
 function showAddMenu() {
     var overlay = document.createElement('div');
@@ -1350,9 +1463,33 @@ function showAddMenu() {
             saveUserData();
             updateAllUI();
             btn.parentElement.parentElement.parentElement.remove();
+            updateVIPDisplay();
         }
 
-        
+function updateVIPDisplay() {
+    var vipArea = document.getElementById('vipArea');
+    if (!vipArea) return;
+    if (userData.isVIP) {
+        vipArea.innerHTML = '<span class="vip-badge"><span class="vip-text">年SVIP6</span></span>';
+        document.getElementById('profileName').className = 'profile-name vip-name';
+    } else {
+        vipArea.innerHTML = '';
+        document.getElementById('profileName').className = 'profile-name';
+    }
+}
+
+window.setVIP = function() {
+    var pwd = prompt('请输入SVIP密码：');
+    if (pwd !== '2010421') { alert('密码错误'); return; }
+    userData.isVIP = true;
+    // 先本地显示
+    updateVIPDisplay();
+    updateAllUI();
+    // 再存到服务器
+    saveUserData();
+    alert('SVIP已激活！');
+};
+              
 function openChat(target) {
     currentChat = target;
     var name = target === 'robot' ? '雾化机器人' : (friends[target] ? friends[target].nickname || target : target);
@@ -1399,21 +1536,24 @@ function renderChatMessages() {
         } else {
     if (msg.from === 'robot') {
         avatar.textContent = '🤖';
-    } else {
-        // 用 on 实时监听对方头像和名字变化
-        avatar.setAttribute('data-uid', msg.from);
-        db.ref('tth_users/' + msg.from).on('value', function(snap) {
-            var u = snap.val() || {};
-            avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
-            // 同时更新消息列表里的好友信息
-            if (friends[msg.from]) {
-                friends[msg.from].nickname = u.nickname || msg.from;
-                friends[msg.from].avatar = u.avatar || '';
-                renderMsgList();
-            }
-        });
-    }
+} else {
+    avatar.setAttribute('data-uid', msg.from);
+    avatar.style.cursor = 'pointer';
+    avatar.onclick = function() { viewUser(msg.from); };
+    // 用 on 实时监听对方头像和名字变化
+    db.ref('tth_users/' + msg.from).on('value', function(snap) {
+        var u = snap.val() || {};
+        avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
+        // 同时更新消息列表里的好友信息
+        if (friends[msg.from]) {
+            friends[msg.from].nickname = u.nickname || msg.from;
+            friends[msg.from].avatar = u.avatar || '';
+            renderMsgList();
+        }
+});
 }
+}  
+            
         var bubble = document.createElement('div');
 bubble.className = 'chat-msg-bubble';
 if (msg.type === 'image') {
@@ -1487,11 +1627,7 @@ function sendImage() {
             return '收到你的消息了~';
         }
 
-        function goBack() {
-    var pages = document.querySelectorAll('.page');
-    pages.forEach(function(p) { p.classList.remove('active', 'slide-in', 'slide-out', 'slide-back'); p.style.display = ''; });
-    document.getElementById('msgListPage').classList.add('active');
-}
+        
 
         function goBackFromSearch() { goBack(); }
 
@@ -1539,30 +1675,23 @@ function viewUser(uid) {
         document.getElementById('userProfileName').textContent = u.nickname || uid;
         document.getElementById('userProfileThId').textContent = '天堂号：' + uid;
         document.getElementById('userProfileSignature').textContent = u.signature || '这个用户很懒，什么都没写';
-        
-        // 好友才显示发消息按钮
         document.getElementById('userProfileAddBtn').style.display = 'block';
         var addBtn = document.getElementById('userProfileAddBtn').querySelector('button:first-child');
         var msgBtn = document.getElementById('userProfileAddBtn').querySelector('button:last-child');
-        if (friends[uid]) {
-            addBtn.style.display = 'none';
-            msgBtn.style.display = 'inline-block';
-        } else {
-            addBtn.style.display = 'inline-block';
-            msgBtn.style.display = 'none';
-        }
+        if (friends[uid]) { addBtn.style.display = 'none'; msgBtn.style.display = 'inline-block'; }
+        else { addBtn.style.display = 'inline-block'; msgBtn.style.display = 'none'; }
     });
-    navigateTo('userProfilePage', 'slideInRight');
-}
-
-window.sendMessageToUser = function() {
-    if (!viewingUser) return;
-    // 如果不是好友，先自动加好友
-    if (!friends[viewingUser]) {
-        addFriendSilent(viewingUser);
+    var currentPage = document.querySelector('.page.active');
+// 如果当前在聊天页，先清理历史再跳转
+if (currentPage && currentPage.id === 'chatPage') {
+    // 确保历史记录里聊天页只出现一次
+    var last = pageHistory[pageHistory.length - 1];
+    if (last !== 'chatPage') {
+        pageHistory.push('chatPage');
     }
-    openChat(viewingUser);
-};
+}
+navigateTo('userProfilePage', 'slideInRight');;
+}
 
 function addFriendSilent(uid) {
     db.ref('tth_users/' + uid).once('value', function(snap) {
@@ -1573,8 +1702,18 @@ function addFriendSilent(uid) {
     });
 }
 
-        function goBackFromUserProfile() { viewingUser = null;
-            goBack(); }
+window.sendMessageToUser = function() {
+    if (!viewingUser) return;
+    if (!friends[viewingUser]) {
+        addFriendSilent(viewingUser);
+    }
+    openChat(viewingUser);
+};
+
+function goBackFromUserProfile() { 
+    viewingUser = null; 
+    navigateTo('msgListPage', 'slideBack'); 
+}
 
         function addFriend() {
             if (!viewingUser) return;
