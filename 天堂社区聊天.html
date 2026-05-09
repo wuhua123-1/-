@@ -1074,21 +1074,28 @@
         </div>
 
         <!-- 他人主页 -->
-        <div class="page user-profile-page" id="userProfilePage">
-            <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
-                <div class="chat-back" onclick="goBackFromUserProfile()">←</div>
-                <span style="font-size:17px;font-weight:600;">个人资料</span>
-            </div>
-            <div class="user-profile-card">
-                <div class="user-profile-avatar" id="userProfileAvatar">👤</div>
-                <div class="user-profile-name" id="userProfileName"></div>
-                <div class="user-profile-th-id" id="userProfileThId"></div>
-            </div>
-            <div class="user-profile-space" id="userProfileSpace" onclick="openUserSpace()">天堂空间</div>
-            <div class="user-profile-add-btn" id="userProfileAddBtn">
-                <button onclick="addFriend()">加好友</button>
-            </div>
+<div class="page profile-page" id="userProfilePage">
+    <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div class="chat-back" onclick="goBackFromUserProfile()">←</div>
+        <span style="font-size:17px;font-weight:600;">个人资料</span>
+    </div>
+    <div class="profile-header">
+        <div class="profile-avatar" id="userProfileAvatar" style="margin-left:10px;">👤</div>
+        <div class="profile-header-info">
+            <div class="profile-name" id="userProfileName"></div>
+            <div class="profile-th-id" id="userProfileThId"></div>
         </div>
+    </div>
+    <div class="profile-section">
+        <div class="profile-section-item">
+            <span class="item-left">个性签名</span>
+            <span class="item-right" id="userProfileSignature">这个用户很懒，什么都没写</span>
+        </div>
+    </div>
+    <div class="user-profile-add-btn" id="userProfileAddBtn" style="text-align:center;padding:20px;">
+        <button onclick="addFriend()" style="padding:10px 40px;background:#12b7f5;color:#fff;border:none;border-radius:20px;font-size:15px;">加好友</button>
+    </div>
+</div>
 
         <!-- 搜索页 -->
         <div class="page search-page" id="searchPage">
@@ -1342,72 +1349,98 @@ window.registerUser = function() {
             btn.parentElement.parentElement.parentElement.remove();
         }
 
-        function loadChatMessages() { db.ref('tth_chat').on('value', function(snap) { chatMessages = snap.val() || {}; }); }
-
-        function openChat(target) {
-            currentChat = target;
-            var name = target === 'robot' ? '雾化机器人' : (friends[target] ? friends[target].nickname || target : target);
-            document.getElementById('chatTitle').textContent = name;
-            navigateTo('chatPage', 'slideInRight');
-            renderChatMessages();
-            if (target === 'robot') {
-                setTimeout(function() {
-                    if (!chatMessages['robot'] || Object.keys(chatMessages['robot']).length === 0) {
-                        var w = { from: 'robot', text: '你好！我是雾化机器人🤖', time: Date.now(), type: 'text' };
-                        if (!chatMessages['robot']) chatMessages['robot'] = {};
-                        chatMessages['robot']['welcome'] = w;
-                        db.ref('tth_chat/robot/welcome').set(w);
-                        renderChatMessages();
-                    }
-                }, 300);
-            }
-        }
-
-        function renderChatMessages() {
-            var container = document.getElementById('chatMessages');
-            container.innerHTML = '';
-            var msgs = chatMessages[currentChat] || {};
-            var keys = Object.keys(msgs).sort(function(a, b) { return msgs[a].time - msgs[b].time; });
-            keys.forEach(function(k) {
-                var msg = msgs[k];
-                var isMine = msg.from === userId;
-                var row = document.createElement('div');
-                row.className = 'chat-msg-row ' + (isMine ? 'mine' : 'other');
-                var avatar = document.createElement('div');
-                avatar.className = 'chat-msg-avatar';
-                if (isMine) { avatar.innerHTML = userData.avatar ? '<img src="' + userData.avatar + '">' : '👤'; } else { avatar
-                        .textContent = msg.from === 'robot' ? '🤖' : '👤'; }
-                var bubble = document.createElement('div');
-                bubble.className = 'chat-msg-bubble';
-                bubble.textContent = msg.text;
-                row.appendChild(bubble);
-                row.appendChild(avatar);
-                container.appendChild(row);
+        
+function openChat(target) {
+    currentChat = target;
+    var name = target === 'robot' ? '雾化机器人' : (friends[target] ? friends[target].nickname || target : target);
+    document.getElementById('chatTitle').textContent = name;
+    navigateTo('chatPage', 'slideInRight');
+    loadAndRenderChat();
+    if (target === 'robot') {
+        setTimeout(function() {
+            var chatPath = [userId, 'robot'].sort().join('_');
+            db.ref('tth_chat/' + chatPath).once('value', function(snap) {
+                if (!snap.val() || Object.keys(snap.val()).length === 0) {
+                    var w = { from: 'robot', text: '你好！我是雾化机器人🤖', time: Date.now(), type: 'text' };
+                    db.ref('tth_chat/' + chatPath + '/welcome').set(w);
+                }
             });
-            container.scrollTop = container.scrollHeight;
-        }
+        }, 300);
+    }
+}
+function loadAndRenderChat() {
+    var chatPath = [userId, currentChat].sort().join('_');
+    db.ref('tth_chat/' + chatPath).on('value', function(snap) {
+        if (!chatMessages[currentChat]) chatMessages[currentChat] = {};
+        chatMessages[currentChat] = snap.val() || {};
+        renderChatMessages();
+    });
+}
 
-        function sendMessage() {
-            var input = document.getElementById('chatInput');
-            var text = input.value.trim();
-            if (!text) return;
-            input.value = '';
-            if (!chatMessages[currentChat]) chatMessages[currentChat] = {};
-            var key = 'msg_' + Date.now();
-            var msgData = { from: userId, text: text, time: Date.now(), type: 'text' };
-            chatMessages[currentChat][key] = msgData;
-            db.ref('tth_chat/' + currentChat + '/' + key).set(msgData);
-            renderChatMessages();
-            if (currentChat === 'robot') {
-                setTimeout(function() {
-                    var rk = 'reply_' + Date.now();
-                    var rd = { from: 'robot', text: getRobotReply(text), time: Date.now(), type: 'text' };
-                    chatMessages[currentChat][rk] = rd;
-                    db.ref('tth_chat/' + currentChat + '/' + rk).set(rd);
-                    renderChatMessages();
-                }, 800);
+
+
+function renderChatMessages() {
+    var container = document.getElementById('chatMessages');
+    container.innerHTML = '';
+    var msgs = chatMessages[currentChat] || {};
+    var keys = Object.keys(msgs).sort(function(a, b) { return msgs[a].time - msgs[b].time; });
+    keys.forEach(function(k) {
+        var msg = msgs[k];
+        var isMine = msg.from === userId;
+        var row = document.createElement('div');
+        row.className = 'chat-msg-row ' + (isMine ? 'mine' : 'other');
+        var avatar = document.createElement('div');
+        avatar.className = 'chat-msg-avatar';
+        if (isMine) {
+            avatar.innerHTML = userData.avatar ? '<img src="' + userData.avatar + '">' : '👤';
+        } else {
+            if (msg.from === 'robot') {
+                avatar.textContent = '🤖';
+            } else {
+                db.ref('tth_users/' + msg.from).once('value', function(snap) {
+                    var u = snap.val() || {};
+                    avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
+                });
             }
         }
+        var bubble = document.createElement('div');
+        bubble.className = 'chat-msg-bubble';
+        bubble.textContent = msg.text;
+if (isMine) {
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+} else {
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+}
+        container.appendChild(row);
+    });
+    container.scrollTop = container.scrollHeight;
+}
+
+function sendMessage() {
+    var input = document.getElementById('chatInput');
+    var text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    
+    // 生成唯一聊天路径（双方ID排序，保证两人使用同一个聊天节点）
+    var chatPath = [userId, currentChat].sort().join('_');
+    
+    var key = 'msg_' + Date.now();
+    var msgData = { from: userId, text: text, time: Date.now(), type: 'text' };
+    db.ref('tth_chat/' + chatPath + '/' + key).set(msgData);
+    renderChatMessages();
+    
+    if (currentChat === 'robot') {
+        setTimeout(function() {
+            var rk = 'reply_' + Date.now();
+            var rd = { from: 'robot', text: getRobotReply(text), time: Date.now(), type: 'text' };
+            db.ref('tth_chat/' + chatPath + '/' + rk).set(rd);
+            renderChatMessages();
+        }, 800);
+    }
+}
 
         function getRobotReply(msg) {
             var l = msg.toLowerCase();
@@ -1432,19 +1465,22 @@ window.registerUser = function() {
             document.getElementById('searchResults').innerHTML = '';
         }
 
-        function doSearch() {
-            var query = document.getElementById('searchInput').value.trim();
-            if (!query) return;
-            db.ref('tth_users').once('value', function(snap) {
-                var results = [];
-                snap.forEach(function(child) {
-                    var u = child.val();
-                    if (child.key !== userId && (child.key.indexOf(query) !== -1 || (u.nickname && u.nickname.indexOf(
-                            query) !== -1))) { results.push({ id: child.key, data: u }); }
-                });
-                renderSearchResults(results);
-            });
-        }
+function doSearch() {
+    var query = document.getElementById('searchInput').value.trim();
+    if (!query) return;
+    document.getElementById('searchResults').innerHTML = '<div style="text-align:center;padding:40px;color:#b0b0b0;">搜索中...</div>';
+    
+    db.ref('tth_users').once('value', function(snap) {
+        var results = [];
+        snap.forEach(function(child) {
+            var u = child.val();
+            if (child.key !== userId && (child.key.indexOf(query) !== -1 || (u.nickname && u.nickname.indexOf(query) !== -1))) {
+                results.push({ id: child.key, data: u });
+            }
+        });
+        renderSearchResults(results);
+    });
+}
 
         function renderSearchResults(results) {
             var el = document.getElementById('searchResults');
@@ -1458,17 +1494,18 @@ window.registerUser = function() {
             }).join('');
         }
 
-        function viewUser(uid) {
-            db.ref('tth_users/' + uid).once('value', function(snap) {
-                var u = snap.val() || {};
-                viewingUser = uid;
-                document.getElementById('userProfileAvatar').innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
-                document.getElementById('userProfileName').textContent = u.nickname || uid;
-                document.getElementById('userProfileThId').textContent = '天堂号：' + uid;
-                document.getElementById('userProfileAddBtn').style.display = friends[uid] ? 'none' : 'block';
-                navigateTo('userProfilePage', 'slideInRight');
-            });
-        }
+ function viewUser(uid) {
+    db.ref('tth_users/' + uid).on('value', function(snap) {
+        var u = snap.val() || {};
+        viewingUser = uid;
+        document.getElementById('userProfileAvatar').innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
+        document.getElementById('userProfileName').textContent = u.nickname || uid;
+        document.getElementById('userProfileThId').textContent = '天堂号：' + uid;  
+        document.getElementById('userProfileAddBtn').style.display = friends[uid] ? 'none' : 'block';
+        document.getElementById('userProfileSignature').textContent = u.signature || '这个用户很懒，什么都没写';
+    });
+    navigateTo('userProfilePage', 'slideInRight');
+}
 
         function goBackFromUserProfile() { viewingUser = null;
             goBack(); }
