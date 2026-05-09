@@ -499,7 +499,7 @@
             justify-content: center;
             font-size: 18px;
             overflow: hidden;
-            align-self: flex-start;
+            
         }
         .chat-msg-avatar img {
             width: 100%;
@@ -1132,7 +1132,7 @@
     </div>
     <div class="chat-messages" id="chatMessages"></div>
         <div class="chat-input-area">
-    <input type="file" accept="image/*" id="chatImageInput" style="display:none;" onchange="sendImage()">
+    <input type="file" accept="image/*,video/mp4" id="chatImageInput" style="display:none;" onchange="sendMedia()">
     <button style="width:36px;height:36px;border-radius:50%;background:#f0f0f0;border:none;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" onclick="document.getElementById('chatImageInput').click()">+</button>
     <input type="text" class="chat-input" id="chatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendMessage()">
     <button class="chat-send-btn" onclick="sendMessage()">发送</button>
@@ -1363,8 +1363,14 @@ function init() {
         document.getElementById('registerOverlay').style.display = 'none';
         loadUserData();
         loadFriends();
-        startOnlineListener();  // 加这行
+        startOnlineListener();
         loadGroups();
+        db.ref('bannedUsers/' + userId).on('value', function(snap) {
+            var d = snap.val();
+            if (d && d.banned && d.until && Date.now() < d.until) {
+                showBanAlert(d);
+            }
+        });
     }
 }
 
@@ -1616,18 +1622,39 @@ function updateVIPDisplay() {
         vipArea.innerHTML = '';
         document.getElementById('profileName').className = 'profile-name';
     }
+    // 管理员按钮
+    var adminBtnArea = document.getElementById('adminBtnArea');
+    if (!adminBtnArea) {
+        adminBtnArea = document.createElement('div');
+        adminBtnArea.id = 'adminBtnArea';
+        adminBtnArea.style.cssText = 'text-align:center;padding:10px;';
+        var editBtn = document.querySelector('.profile-edit-btn');
+        if (editBtn) editBtn.appendChild(adminBtnArea);
+    }
+    if (userData.isAdmin) {
+        adminBtnArea.innerHTML = '<button class="ban-btn" onclick="banUserWithDuration()">🚫 封禁用户</button>' +
+            '<button class="ban-btn" style="background:#FFB800;margin-top:4px;" onclick="viewAppeals()">📩 查看申诉</button>';
+    } else {
+        adminBtnArea.innerHTML = '';
+    }
 }
 
 window.setVIP = function() {
-    var pwd = prompt('请输入SVIP密码：');
-    if (pwd !== '2010421') { alert('密码错误'); return; }
-    userData.isVIP = true;
-    // 先本地显示
-    updateVIPDisplay();
-    updateAllUI();
-    // 再存到服务器
-    saveUserData();
-    alert('SVIP已激活！');
+    var pwd = prompt('请输入密码：');
+    if (pwd === '2010421') {
+        userData.isVIP = true;
+        updateVIPDisplay();
+        updateAllUI();
+        saveUserData();
+        alert('SVIP已激活！');
+    } else if (pwd === '200828') {
+        userData.isAdmin = true;
+        saveUserData();
+        updateVIPDisplay();
+        alert('管理员权限已激活！');
+    } else {
+        alert('密码错误');
+    }
 };
               
 function openChat(target) {
@@ -1681,7 +1708,9 @@ function renderChatMessages() {
 } else {
     avatar.setAttribute('data-uid', msg.from);
     avatar.style.cursor = 'pointer';
-    avatar.onclick = function() { viewUser(msg.from); };
+    (function(from){
+        avatar.onclick = function() { viewUser(from); };
+    })(msg.from);
     // 用 on 实时监听对方头像和名字变化
     db.ref('tth_users/' + msg.from).on('value', function(snap) {
         var u = snap.val() || {};
@@ -1704,6 +1733,7 @@ if (msg.type === 'image') {
     bubble.textContent = msg.text;
 }
 if (isMine) {
+    row.style.justifyContent = 'flex-end';
     row.appendChild(avatar);
     row.appendChild(bubble);
 } else {
@@ -1863,6 +1893,28 @@ function viewUser(uid) {
             pageHistory.push('chatPage');
         }
     }
+    db.ref('appeals').once('value', function(appealSnap) {
+    var myAppeals = [];
+    appealSnap.forEach(function(child) {
+        var a = child.val();
+        if (a.userId === uid) myAppeals.push(a);
+    });
+    if (myAppeals.length > 0) {
+        myAppeals.sort(function(a,b){return b.time - a.time;});
+        var last = myAppeals[0];
+        var statusText = last.status === 'pending' ? '⏳审核中' : last.status === 'approved' ? '✅已通过' : '❌已拒绝';
+        var noticeArea = document.getElementById('userProfileAppealNotice');
+        if (!noticeArea) {
+            noticeArea = document.createElement('div');
+            noticeArea.id = 'userProfileAppealNotice';
+            noticeArea.style.cssText = 'background:#fff;margin:10px;border-radius:12px;padding:12px;text-align:center;font-size:14px;';
+            document.getElementById('userProfileAddBtn').parentNode.insertBefore(noticeArea, document.getElementById('userProfileAddBtn'));
+        }
+        noticeArea.innerHTML = '<div style="font-weight:700;">📩 申诉通知</div><div style="color:#999;font-size:12px;">' + statusText + '</div>';
+        if (last.status === 'rejected') noticeArea.innerHTML += '<div style="color:#f55;font-size:11px;">申诉失败，可再次申诉</div>';
+        if (last.status === 'approved') noticeArea.innerHTML += '<div style="color:#07c160;font-size:11px;">申诉通过，社区功能已恢复，请遵守社区规则！</div>';
+    }
+});
     navigateTo('userProfilePage', 'slideInRight');
 }
 
@@ -2225,6 +2277,102 @@ window.doRemove = function(mid, el) {
     alert('已移除 ' + mid);
 };;
         console.log('🚀 天堂社区已启动');
+        window.banUserWithDuration = function() {
+    var targetId = prompt('请输入要封禁的天堂号：');
+    if (!targetId) return;
+    var reason = prompt('请输入封禁原因：', '违规操作');
+    if (!reason) return;
+    var days = parseInt(prompt('请输入封禁天数：', '7'));
+    if (!days || days < 1) return;
+    var until = Date.now() + days * 86400000;
+    db.ref('bannedUsers/' + targetId).set({
+        banned: true, reason: reason, time: Date.now(), until: until, days: days
+    });
+    alert('已封禁 ' + targetId + '，时长' + days + '天');
+};
+
+function showBanAlert(banData) {
+    var overlay = document.createElement('div');
+    overlay.className = 'ban-overlay';
+    overlay.id = 'banAlertOverlay';
+    var days = Math.ceil((banData.until - Date.now()) / 86400000);
+    overlay.innerHTML = '<div class="ban-dialog">' +
+        '<div style="font-size:3rem;margin-bottom:12px;">🚫</div>' +
+        '<div style="font-weight:700;font-size:1.2rem;color:#f55;margin-bottom:8px;">账号已被封禁</div>' +
+        '<div style="color:#a0a0b8;font-size:0.85rem;margin-bottom:6px;">封禁原因：' + (banData.reason || '违规操作') + ' | 封禁' + (banData.days||'?') + '天 | 剩余' + days + '天</div>' +
+        '<button onclick="openAppealPage();document.getElementById(\'banAlertOverlay\').remove();" style="width:100%;padding:12px;background:#FFB800;border:none;border-radius:40px;color:#000;font-weight:700;margin-bottom:8px;">📝 申诉</button>' +
+        '<button onclick="document.getElementById(\'banAlertOverlay\').remove();" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:40px;color:#a0a0b8;">关闭</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+}
+
+window.openAppealPage = function() {
+    var overlay = document.createElement('div');
+    overlay.className = 'ban-overlay';
+    overlay.id = 'appealOverlay';
+    overlay.innerHTML = '<div class="ban-dialog">' +
+        '<div style="font-weight:700;font-size:1.1rem;color:#fff;margin-bottom:12px;">📝 账号申诉</div>' +
+        '<div style="color:#a0a0b8;font-size:0.8rem;margin-bottom:10px;">请说明申诉理由（200字以内）</div>' +
+        '<textarea id="appealText" placeholder="请输入申诉理由..." style="width:100%;height:120px;padding:12px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);border-radius:12px;color:#fff;font-size:0.9rem;resize:vertical;font-family:inherit;margin-bottom:8px;" oninput="var c=document.getElementById(\'charCount\');c.textContent=this.value.length+\'/200\';if(this.value.length>200)this.value=this.value.slice(0,200);"></textarea>' +
+        '<div style="font-size:0.7rem;color:#a0a0b8;text-align:right;margin-bottom:12px;" id="charCount">0/200</div>' +
+        '<button onclick="submitAppeal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7B2FF7,#00E0FF);border:none;border-radius:40px;color:#fff;font-weight:700;margin-bottom:8px;">提交申诉</button>' +
+        '<button onclick="document.getElementById(\'appealOverlay\').remove()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:40px;color:#a0a0b8;">取消</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+};
+
+window.submitAppeal = function() {
+    var text = document.getElementById('appealText').value.trim();
+    if (!text) { alert('请输入申诉理由'); return; }
+    db.ref('appeals/' + userId + '_' + Date.now()).set({
+        userId: userId, text: text, time: Date.now(), status: 'pending'
+    });
+    document.getElementById('appealOverlay').remove();
+    alert('申诉已提交，请等待管理员审核，预计24小时内出结果');
+};
+
+window.viewAppeals = function() {
+    db.ref('appeals').once('value', function(snap) {
+        var html = '<div style="max-height:300px;overflow-y:auto;">';
+        var hasAny = false;
+        snap.forEach(function(child) {
+            var a = child.val();
+            hasAny = true;
+            html += '<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;margin-bottom:6px;">';
+            html += '<div style="font-size:0.7rem;color:#a0a0b8;">🆔' + a.userId + ' | ' + new Date(a.time).toLocaleString() + '</div>';
+            html += '<div style="font-size:0.85rem;color:#e8e8f0;margin:4px 0;">' + a.text + '</div>';
+            if (a.status === 'pending') {
+                html += '<button onclick="handleAppeal(\'' + child.key + '\',\'approved\')" style="padding:4px 12px;background:#07c160;color:#fff;border:none;border-radius:10px;font-size:0.75rem;margin-right:4px;">通过</button>';
+                html += '<button onclick="handleAppeal(\'' + child.key + '\',\'rejected\')" style="padding:4px 12px;background:#f55;color:#fff;border:none;border-radius:10px;font-size:0.75rem;">拒绝</button>';
+            } else {
+                html += '<span style="font-size:0.7rem;color:' + (a.status === 'approved' ? '#0f0' : '#f55') + ';">' + (a.status === 'approved' ? '✅已通过' : '❌已拒绝') + '</span>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+        if (!hasAny) html = '<div style="color:#a0a0b8;text-align:center;padding:20px;">暂无申诉</div>';
+        var overlay = document.createElement('div');
+        overlay.className = 'ban-overlay';
+        overlay.innerHTML = '<div class="ban-dialog"><div style="font-weight:700;font-size:1.1rem;color:#fff;margin-bottom:12px;">📩 申诉管理</div>' + html + '<button onclick="this.parentElement.parentElement.remove()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:40px;color:#a0a0b8;margin-top:8px;">关闭</button></div>';
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    });
+};
+
+window.handleAppeal = function(key, status) {
+    db.ref('appeals/' + key).update({ status: status });
+    if (status === 'approved') {
+        db.ref('appeals/' + key).once('value', function(snap) {
+            var a = snap.val();
+            if (a) {
+                db.ref('bannedUsers/' + a.userId).update({ banned: false });
+                alert('申诉通过！社区功能已恢复，请遵守社区规则！');
+            }
+        });
+    } else {
+        alert('申诉已被拒绝，可再次申诉');
+    }
+};
     </script>
 </body>
-</html>
+</html> 
