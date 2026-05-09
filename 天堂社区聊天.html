@@ -117,6 +117,17 @@
     border-radius: 50%;
     margin-right: 3px;
 }
+.ban-dialog {
+    background: #16161e;
+    border-radius: 18px;
+    padding: 30px 24px;
+    width: 90%;
+    max-width: 380px;
+    text-align: center;
+    border: 1px solid rgba(255,0,0,0.4);
+    box-shadow: 0 0 40px rgba(255,0,0,0.2);
+    color: #fff;
+}
         :root {
             --bg: #f5f5f5;
             --white: #fff;
@@ -1368,19 +1379,14 @@ function init() {
         db.ref('bannedUsers/' + userId).on('value', function(snap) {
             var d = snap.val();
             if (d && d.banned && d.until && Date.now() < d.until) {
+                isBanned = true;
+                currentBanData = d;
                 showBanAlert(d);
-                var banInterval = setInterval(function() {
-                    db.ref('bannedUsers/' + userId).once('value', function(checkSnap) {
-                        var check = checkSnap.val();
-                        if (!check || !check.banned || Date.now() >= check.until) {
-                            clearInterval(banInterval);
-                            var existing = document.getElementById('banAlertOverlay');
-                            if (existing) existing.remove();
-                        } else if (!document.getElementById('banAlertOverlay')) {
-                            showBanAlert(check);
-                        }
-                    });
-                }, 3000);
+            } else {
+                isBanned = false;
+                currentBanData = null;
+                var existing = document.getElementById('banAlertOverlay');
+                if (existing) existing.remove();
             }
         });
     }
@@ -1923,8 +1929,7 @@ function viewUser(uid) {
             document.getElementById('userProfileAddBtn').parentNode.insertBefore(noticeArea, document.getElementById('userProfileAddBtn'));
         }
         noticeArea.innerHTML = '<div style="font-weight:700;">📩 申诉通知</div><div style="color:#999;font-size:12px;">' + statusText + '</div>';
-        if (last.status === 'rejected') noticeArea.innerHTML += '<div style="color:#f55;font-size:11px;">申诉失败，可再次申诉</div>';
-        if (last.status === 'approved') noticeArea.innerHTML += '<div style="color:#07c160;font-size:11px;">申诉通过，社区功能已恢复，请遵守社区规则！</div>';
+
     }
 });
     navigateTo('userProfilePage', 'slideInRight');
@@ -2311,7 +2316,7 @@ function showBanAlert(banData) {
     overlay.innerHTML = '<div class="ban-dialog">' +
         '<div style="font-size:3rem;margin-bottom:12px;">🚫</div>' +
         '<div style="font-weight:700;font-size:1.2rem;color:#f55;margin-bottom:8px;">账号已被封禁</div>' +
-        '<div style="color:#a0a0b8;font-size:0.85rem;margin-bottom:6px;">封禁原因：' + (banData.reason || '违规操作') + ' | 封禁' + (banData.days||'?') + '天 | 剩余' + days + '天</div>' +
+        '<div style="color:#ccc;font-size:0.85rem;margin-bottom:6px;">封禁原因：' + (banData.reason || '违规操作') + ' | 封禁' + (banData.days||'?') + '天 | 剩余' + days + '天</div>' +
         '<button onclick="openAppealPage();document.getElementById(\'banAlertOverlay\').remove();" style="width:100%;padding:12px;background:#FFB800;border:none;border-radius:40px;color:#000;font-weight:700;margin-bottom:8px;">📝 申诉</button>' +
         '</div>';
     document.body.appendChild(overlay);
@@ -2319,15 +2324,15 @@ function showBanAlert(banData) {
 
 window.openAppealPage = function() {
     var overlay = document.createElement('div');
-    overlay.className = 'ban-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;';;
     overlay.id = 'appealOverlay';
     overlay.innerHTML = '<div class="ban-dialog">' +
         '<div style="font-weight:700;font-size:1.1rem;color:#fff;margin-bottom:12px;">📝 账号申诉</div>' +
-        '<div style="color:#a0a0b8;font-size:0.8rem;margin-bottom:10px;">请说明申诉理由（200字以内）</div>' +
+        '<div style="color:#ccc;font-size:0.8rem;margin-bottom:10px;">请说明申诉理由（200字以内）</div>' +
         '<textarea id="appealText" placeholder="请输入申诉理由..." style="width:100%;height:120px;padding:12px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);border-radius:12px;color:#fff;font-size:0.9rem;resize:vertical;font-family:inherit;margin-bottom:8px;" oninput="var c=document.getElementById(\'charCount\');c.textContent=this.value.length+\'/200\';if(this.value.length>200)this.value=this.value.slice(0,200);"></textarea>' +
-        '<div style="font-size:0.7rem;color:#a0a0b8;text-align:right;margin-bottom:12px;" id="charCount">0/200</div>' +
+        '<div style="font-size:0.7rem;color:#ccc;text-align:right;margin-bottom:12px;" id="charCount">0/200</div>' +
         '<button onclick="submitAppeal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7B2FF7,#00E0FF);border:none;border-radius:40px;color:#fff;font-weight:700;margin-bottom:8px;">提交申诉</button>' +
-        '<button onclick="document.getElementById(\'appealOverlay\').remove()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:40px;color:#a0a0b8;">取消</button>' +
+        '<button onclick="document.getElementById(\'appealOverlay\').remove()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:40px;color:#ccc;">取消</button>' +
         '</div>';
     document.body.appendChild(overlay);
 };
@@ -2350,7 +2355,7 @@ window.viewAppeals = function() {
             var a = child.val();
             hasAny = true;
             html += '<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;margin-bottom:6px;">';
-            html += '<div style="font-size:0.7rem;color:#a0a0b8;">🆔' + a.userId + ' | ' + new Date(a.time).toLocaleString() + '</div>';
+            html += '<div style="font-size:0.7rem;color:#ccc;">🆔' + a.userId + ' | ' + new Date(a.time).toLocaleString() + '</div>';
             html += '<div style="font-size:0.85rem;color:#e8e8f0;margin:4px 0;">' + a.text + '</div>';
             if (a.status === 'pending') {
                 html += '<button onclick="handleAppeal(\'' + child.key + '\',\'approved\')" style="padding:4px 12px;background:#07c160;color:#fff;border:none;border-radius:10px;font-size:0.75rem;margin-right:4px;">通过</button>';
@@ -2361,10 +2366,10 @@ window.viewAppeals = function() {
             html += '</div>';
         });
         html += '</div>';
-        if (!hasAny) html = '<div style="color:#a0a0b8;text-align:center;padding:20px;">暂无申诉</div>';
+        if (!hasAny) html = '<div style="color:#ccc;text-align:center;padding:20px;">暂无申诉</div>';
         var overlay = document.createElement('div');
         overlay.className = 'ban-overlay';
-        overlay.innerHTML = '<div class="ban-dialog"><div style="font-weight:700;font-size:1.1rem;color:#fff;margin-bottom:12px;">📩 申诉管理</div>' + html + '<button onclick="this.parentElement.parentElement.remove()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:40px;color:#a0a0b8;margin-top:8px;">关闭</button></div>';
+        overlay.innerHTML = '<div class="ban-dialog"><div style="font-weight:700;font-size:1.1rem;color:#fff;margin-bottom:12px;">📩 申诉管理</div>' + html + '<button onclick="this.parentElement.parentElement.remove()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:40px;color:#ccc;margin-top:8px;">关闭</button></div>';
         document.body.appendChild(overlay);
         overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
     });
@@ -2377,13 +2382,13 @@ window.handleAppeal = function(key, status) {
             var a = snap.val();
             if (a) {
                 db.ref('bannedUsers/' + a.userId).update({ banned: false });
-                alert('申诉通过！社区功能已恢复，请遵守社区规则！');
             }
         });
+        alert('已通过');
     } else {
-        alert('申诉已被拒绝，可再次申诉');
+        alert('已拒绝');
     }
-};
+};;
     </script>
 </body>
 </html> 
