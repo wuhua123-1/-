@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>天堂社区</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --bg: #f5f5f5;
+            --white: #fff;
+            --blue: #12b7f5;
+            --text-dark: #1a1a1a;
+            --text-gray: #8a8a8a;
+            --text-light: #b0b0b0;
+            --border: #e5e5e5;
+            --green: #07c160;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'PingFang SC', sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .phone {
+            width: 100vw;
+            height: 100vh;
+            max-width: 100%;
+            background: #fff;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ========== 页面容器 + 动画 ========== */
+        .page {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            inset: 0;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.35s ease;
+            will-change: transform, opacity;
+        }
+        .page.active {
+            display: flex;
+            transform: translateX(0);
+            opacity: 1;
+        }
+        .page.slide-in {
+            display: flex;
+            animation: slideInRight 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+        }
+        .page.slide-out {
+            animation: slideOutLeft 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+        }
+        .page.slide-back {
+            display: flex;
+            animation: slideBackRight 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0.8;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOutLeft {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-30%);
+                opacity: 0.5;
+            }
+        }
+        @keyframes slideBackRight {
+            from {
+                transform: translateX(-30%);
+                opacity: 0.5;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* ========== 消息列表页 ========== */
+        .msg-list-page {
+            background: #f5f5f5;
+        }
+        .nav-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .nav-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            object-fit: cover;
+            background: #e0e0e0;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .nav-avatar:active {
+            transform: scale(0.9);
+        }
+        .nav-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .nav-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .nav-nickname {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .nav-status {
+            font-size: 12px;
+            color: var(--text-gray);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .nav-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            display: inline-block;
+        }
+        .nav-add-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.04);
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            transition: all 0.2s;
+        }
+        .nav-add-btn:active {
+            background: rgba(0, 0, 0, 0.1);
+            transform: scale(0.85);
+        }
+        .msg-list {
+            flex: 1;
+            overflow-y: auto;
+            background: #fff;
+            margin-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+        .msg-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            gap: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.15s;
+        }
+        .msg-item:active {
+            background: #f0f0f0;
+        }
+        .msg-item-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            overflow: hidden;
+        }
+        .msg-item-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .msg-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .msg-item-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+        .msg-item-preview {
+            font-size: 13px;
+            color: var(--text-gray);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+        .msg-item-time {
+            font-size: 12px;
+            color: var(--text-light);
+            flex-shrink: 0;
+        }
+        .bottom-nav {
+            display: flex;
+            background: #fff;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+            padding-bottom: env(safe-area-inset-bottom, 0);
+        }
+        .bottom-nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 0;
+            cursor: pointer;
+            color: var(--text-gray);
+            font-size: 10px;
+            gap: 2px;
+            transition: color 0.2s;
+        }
+        .bottom-nav-item.active {
+            color: var(--blue);
+        }
+        .bottom-nav-item .nav-icon {
+            font-size: 22px;
+        }
+
+        /* ========== 悬浮菜单 ========== */
+        .popup-menu-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9000;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-end;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        .popup-menu {
+            background: #fff;
+            border-radius: 12px;
+            margin: 60px 16px 0 0;
+            padding: 8px 0;
+            min-width: 140px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: top right;
+        }
+        @keyframes popIn {
+            from {
+                opacity: 0;
+                transform: scale(0.6);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        .popup-menu-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            font-size: 15px;
+            color: var(--text-dark);
+            transition: background 0.15s;
+        }
+        .popup-menu-item:active {
+            background: #f0f0f0;
+        }
+
+        /* ========== 聊天页 ========== */
+        .chat-page {
+            background: #f5f5f5;
+        }
+        .chat-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .chat-back {
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-dark);
+            padding: 4px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        .chat-back:active {
+            transform: scale(0.85);
+        }
+        .chat-title {
+            font-size: 17px;
+            font-weight: 600;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f5f5f5;
+        }
+        .chat-msg-row {
+            display: flex;
+            gap: 8px;
+            max-width: 80%;
+            align-items: flex-start;
+        }
+        .chat-msg-row.mine {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .chat-msg-row.other {
+            align-self: flex-start;
+        }
+        .chat-msg-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            overflow: hidden;
+            align-self: flex-start;
+        }
+        .chat-msg-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .chat-msg-bubble {
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 15px;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+        .chat-msg-row.mine .chat-msg-bubble {
+            background: #cceeff;
+            border-top-right-radius: 4px;
+        }
+        .chat-msg-row.other .chat-msg-bubble {
+            background: #fff;
+            border-top-left-radius: 4px;
+        }
+        .chat-input-area {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: #fff;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+            padding-bottom: env(safe-area-inset-bottom, 10px);
+        }
+        .chat-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 15px;
+            outline: none;
+            background: #f8f8f8;
+            font-family: inherit;
+        }
+        .chat-input:focus {
+            border-color: var(--blue);
+            background: #fff;
+        }
+        .chat-send-btn {
+            padding: 8px 16px;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+            flex-shrink: 0;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .chat-send-btn:active {
+            transform: scale(0.9);
+            opacity: 0.7;
+        }
+
+        /* ========== 个人主页（左对齐） ========== */
+        .profile-page {
+            background: #f5f5f5;
+            overflow-y: auto;
+        }
+        .profile-header {
+            background: #fff;
+            padding: 20px 20px 16px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .profile-back {
+            position: absolute;
+            left: 10px;
+            top: 12px;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 6px;
+            color: var(--text-dark);
+            transition: transform 0.2s;
+            z-index: 2;
+        }
+        .profile-back:active {
+            transform: scale(0.85);
+        }
+        .profile-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            cursor: pointer;
+            object-fit: cover;
+            background: #e0e0e0;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            overflow: hidden;
+            transition: transform 0.2s;
+            margin-left: 10px;
+        }
+        .profile-avatar:active {
+            transform: scale(0.9);
+        }
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .profile-header-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .profile-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-dark);
+            cursor: pointer;
+        }
+        .profile-th-id {
+            font-size: 13px;
+            color: var(--text-gray);
+            margin-top: 2px;
+        }
+        .profile-tags {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .profile-tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: #f0f0f0;
+            color: var(--text-gray);
+        }
+        .profile-section {
+            background: #fff;
+            margin-top: 10px;
+            padding: 0 16px;
+        }
+        .profile-section-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 15px;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .profile-section-item:last-child {
+            border-bottom: none;
+        }
+        .profile-section-item .item-left {
+            color: var(--text-gray);
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-right: 12px;
+            width: 60px;
+        }
+        .profile-section-item .item-right {
+            flex: 1;
+            text-align: right;
+            color: var(--text-light);
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: color 0.2s;
+        }
+        .profile-section-item .item-right.has-value {
+            color: var(--text-dark);
+        }
+        .profile-section-item .arrow {
+            color: #ccc;
+            font-size: 18px;
+            margin-left: 6px;
+        }
+        .profile-space-section {
+            background: #fff;
+            margin-top: 10px;
+            padding: 0 16px;
+        }
+        .profile-space-entry {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            cursor: pointer;
+            font-size: 15px;
+            color: var(--text-dark);
+            transition: background 0.15s;
+        }
+        .profile-space-entry .arrow {
+            color: #ccc;
+            font-size: 18px;
+        }
+        .profile-space-photos {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            padding-bottom: 12px;
+        }
+        .profile-space-photo-dot {
+            width: 100%;
+            aspect-ratio: 1;
+            background: #e8e8e8;
+            border-radius: 4px;
+        }
+        .profile-edit-btn {
+            text-align: center;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .profile-edit-btn button {
+            padding: 10px 40px;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .profile-edit-btn button:active {
+            transform: scale(0.9);
+            opacity: 0.7;
+        }
+
+        /* ========== 他人主页 ========== */
+        .user-profile-page {
+            background: #f5f5f5;
+            overflow-y: auto;
+        }
+        .user-profile-card {
+            background: #fff;
+            margin: 10px;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        .user-profile-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            overflow: hidden;
+        }
+        .user-profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .user-profile-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+        .user-profile-th-id {
+            font-size: 13px;
+            color: var(--text-gray);
+            margin-top: 4px;
+        }
+        .user-profile-space {
+            background: #fff;
+            margin: 10px;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            font-size: 15px;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .user-profile-space:active {
+            background: #f0f0f0;
+        }
+        .user-profile-add-btn {
+            text-align: center;
+            padding: 10px;
+        }
+        .user-profile-add-btn button {
+            padding: 10px 40px;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .user-profile-add-btn button:active {
+            transform: scale(0.9);
+            opacity: 0.7;
+        }
+
+        /* ========== 搜索页 ========== */
+        .search-page {
+            background: #f5f5f5;
+        }
+        .search-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .search-header input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 15px;
+            outline: none;
+            background: #f8f8f8;
+            font-family: inherit;
+        }
+        .search-header input:focus {
+            border-color: var(--blue);
+            background: #fff;
+        }
+        .search-tabs {
+            display: flex;
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .search-tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            font-size: 14px;
+            color: var(--text-gray);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .search-tab.active {
+            color: var(--blue);
+            border-bottom-color: var(--blue);
+        }
+        .search-results {
+            flex: 1;
+            overflow-y: auto;
+            background: #fff;
+        }
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            gap: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.15s;
+        }
+        .search-result-item:active {
+            background: #f0f0f0;
+        }
+        .search-result-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            overflow: hidden;
+        }
+        .search-result-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .search-result-info {
+            flex: 1;
+        }
+        .search-result-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+        .search-result-th-id {
+            font-size: 12px;
+            color: var(--text-gray);
+        }
+
+        /* ========== 空间页 ========== */
+        .space-page {
+            background: #f5f5f5;
+            overflow-y: auto;
+        }
+        .space-header {
+            background: linear-gradient(135deg, #4a90d9, #6ab0ff);
+            padding: 30px 20px 20px;
+            color: #fff;
+            position: relative;
+        }
+        .space-back {
+            position: absolute;
+            left: 12px;
+            top: 12px;
+            font-size: 22px;
+            cursor: pointer;
+            color: #fff;
+            transition: transform 0.2s;
+        }
+        .space-back:active {
+            transform: scale(0.85);
+        }
+        .space-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+        }
+        .space-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .space-name {
+            font-size: 20px;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+        .space-posts {
+            background: #fff;
+            margin-top: 8px;
+            padding: 16px;
+            min-height: 200px;
+        }
+        .space-posts:empty::before {
+            content: '还没有动态，发一条吧~';
+            color: var(--text-light);
+            display: block;
+            text-align: center;
+            padding-top: 60px;
+        }
+        .space-post-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(18, 183, 245, 0.4);
+            z-index: 100;
+            transition: transform 0.2s;
+        }
+        .space-post-btn:active {
+            transform: scale(0.85);
+        }
+
+        /* ========== 注册弹窗 ========== */
+        .register-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .register-dialog {
+            background: #fff;
+            border-radius: 16px;
+            padding: 30px 24px;
+            max-width: 360px;
+            width: 90%;
+            text-align: center;
+            animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes modalPop {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        .register-dialog input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 16px;
+            outline: none;
+            font-family: inherit;
+        }
+        .register-dialog .btn-register {
+            width: 100%;
+            padding: 12px;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            border-radius: 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .register-dialog .btn-register:active {
+            transform: scale(0.95);
+        }
+        .register-error {
+            color: #f55;
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* ========== 编辑弹窗 ========== */
+        .edit-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 8000;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .edit-dialog {
+            background: #fff;
+            border-radius: 16px;
+            padding: 20px;
+            width: 90%;
+            max-width: 360px;
+            animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .edit-dialog input,
+        .edit-dialog textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 10px;
+            outline: none;
+            font-family: inherit;
+        }
+        .edit-dialog textarea {
+            height: 60px;
+            resize: none;
+        }
+        .edit-dialog .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+        .edit-dialog button {
+            flex: 1;
+            padding: 10px;
+            border-radius: 20px;
+            border: none;
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .edit-dialog button:active {
+            transform: scale(0.95);
+        }
+        .btn-cancel {
+            background: #f0f0f0;
+            color: #666;
+        }
+        .btn-save {
+            background: var(--blue);
+            color: #fff;
+        }
+        .hidden-input {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="phone" id="app">
+        <!-- 消息列表页 -->
+        <div class="page active msg-list-page" id="msgListPage">
+            <div class="nav-header">
+                <div class="nav-avatar" id="navAvatar" onclick="openProfile()">👤</div>
+                <div class="nav-info">
+                    <div class="nav-nickname" id="navNickname">天堂用户</div>
+                    <div class="nav-status"><span class="dot"></span>在线</div>
+                </div>
+                <button class="nav-add-btn" onclick="showAddMenu()">+</button>
+            </div>
+            <div class="msg-list" id="msgList"></div>
+            <div class="bottom-nav">
+                <div class="bottom-nav-item active"><span class="nav-icon">💬</span>消息</div>
+                <div class="bottom-nav-item"><span class="nav-icon">👥</span>联系人</div>
+            </div>
+        </div>
+
+        <!-- 聊天页 -->
+        <div class="page chat-page" id="chatPage">
+            <div class="chat-header">
+                <div class="chat-back" onclick="goBack()">←</div>
+                <div class="chat-title" id="chatTitle">雾化机器人</div>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-area">
+                <input type="text" class="chat-input" id="chatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendMessage()">
+                <button class="chat-send-btn" onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+
+        <!-- 个人主页（左对齐） -->
+        <div class="page profile-page" id="profilePage">
+            <div class="profile-header">
+                <div class="profile-back" onclick="goBackFromProfile()">←</div>
+                <div class="profile-avatar" id="profileAvatar" onclick="changeAvatar()">👤</div>
+                <div class="profile-header-info">
+                    <div class="profile-name" id="profileName" onclick="editProfile()">天堂用户</div>
+                    <div class="profile-th-id" id="profileThId">天堂号：未设置</div>
+                    <div class="profile-tags"><span class="profile-tag" onclick="editProfile()">+ 添加标签</span></div>
+                </div>
+            </div>
+            <div class="profile-section">
+                <div class="profile-section-item" onclick="editProfile()">
+                    <span class="item-left">个性签名</span>
+                    <span class="item-right" id="profileSignature">编辑个签，展示我的独特态度。</span>
+                    <span class="arrow">›</span>
+                </div>
+            </div>
+            <div class="profile-section">
+                <div class="profile-section-item">
+                    <span class="item-left">资料完成度</span>
+                    <span class="item-right">60%</span>
+                </div>
+                <div style="padding:0 0 12px;">
+                    <div style="height:6px;background:#e0e0e0;border-radius:3px;">
+                        <div style="height:100%;width:60%;background:var(--blue);border-radius:3px;transition:width 0.5s;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="profile-space-section">
+                <div class="profile-space-entry" onclick="openSpace()">
+                    <span>天堂空间</span>
+                    <span style="flex:1;text-align:right;color:#b0b0b0;font-size:14px;margin-right:4px;">分享新鲜事 ›</span>
+                    <span class="arrow">›</span>
+                </div>
+                <div class="profile-space-grid">
+                    <div class="profile-space-grid-item"></div><div class="profile-space-grid-item"></div>
+                    <div class="profile-space-grid-item"></div><div class="profile-space-grid-item"></div>
+                    <div class="profile-space-grid-item"></div><div class="profile-space-grid-item"></div>
+                    <div class="profile-space-grid-item"></div><div class="profile-space-grid-item"></div>
+                </div>
+            </div>
+            <div class="profile-edit-btn">
+                <button onclick="editProfile()">编辑资料</button>
+            </div>
+        </div>
+
+        <!-- 他人主页 -->
+        <div class="page user-profile-page" id="userProfilePage">
+            <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+                <div class="chat-back" onclick="goBackFromUserProfile()">←</div>
+                <span style="font-size:17px;font-weight:600;">个人资料</span>
+            </div>
+            <div class="user-profile-card">
+                <div class="user-profile-avatar" id="userProfileAvatar">👤</div>
+                <div class="user-profile-name" id="userProfileName"></div>
+                <div class="user-profile-th-id" id="userProfileThId"></div>
+            </div>
+            <div class="user-profile-space" id="userProfileSpace" onclick="openUserSpace()">天堂空间</div>
+            <div class="user-profile-add-btn" id="userProfileAddBtn">
+                <button onclick="addFriend()">加好友</button>
+            </div>
+        </div>
+
+        <!-- 搜索页 -->
+        <div class="page search-page" id="searchPage">
+            <div class="search-header">
+                <div class="chat-back" onclick="goBackFromSearch()">←</div>
+                <input type="text" id="searchInput" placeholder="搜索天堂号/昵称" onkeydown="if(event.key==='Enter')doSearch()">
+            </div>
+            <div class="search-tabs">
+                <div class="search-tab active" onclick="setSearchTab('user', this)">全部</div>
+                <div class="search-tab" onclick="setSearchTab('user', this)">用户</div>
+                <div class="search-tab" onclick="setSearchTab('group', this)">群聊</div>
+            </div>
+            <div class="search-results" id="searchResults"></div>
+        </div>
+
+        <!-- 空间页 -->
+        <div class="page space-page" id="spacePage">
+            <div class="space-header">
+                <div class="space-back" onclick="goBackFromSpace()">←</div>
+                <div class="space-avatar" id="spaceAvatar">👤</div>
+                <div class="space-name" id="spaceName">天堂用户</div>
+            </div>
+            <div class="space-posts" id="spacePosts"></div>
+            <button class="space-post-btn" onclick="newPost()">+</button>
+        </div>
+
+        <input type="file" accept="image/*" class="hidden-input" id="avatarInput" onchange="handleAvatarChange(event)">
+    </div>
+
+    <!-- 注册弹窗 -->
+    <div class="register-overlay" id="registerOverlay">
+        <div class="register-dialog">
+            <div style="font-size:48px;margin-bottom:12px;">🏠</div>
+            <div style="font-weight:700;font-size:18px;color:#1a1a1a;margin-bottom:4px;">注册天堂社区号</div>
+            <div style="color:#8a8a8a;font-size:13px;margin-bottom:16px;">请输入一个纯数字ID</div>
+            <input type="number" id="registerIdInput" placeholder="例如：888888" oninput="if(this.value.length>10)this.value=this.value.slice(0,10)">
+            <button class="btn-register" onclick="registerUser()">注册 / 登录</button>
+            <div class="register-error" id="registerError"></div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCk8WOSS3rOWjJwNvU0v__nuWyzo6BP9n58",
+            authDomain: "wuhua666-335c1.firebaseapp.com",
+            databaseURL: "https://wuhua666-335c1-default-rtdb.firebaseio.com",
+            projectId: "wuhua666-335c1",
+            storageBucket: "wuhua666-335c1.firebasestorage.app",
+            messagingSenderId: "533471509844",
+            appId: "1:533471509844:web:86c39cf365177b9f169cc1"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let userId = localStorage.getItem('tth_user_id');
+        let userData = {};
+        let currentChat = 'robot';
+        let chatMessages = {};
+        let friends = {};
+        let currentSearchTab = 'user';
+        let viewingUser = null;
+        let pageHistory = [];
+
+        function init() {
+            if (userId) {
+                document.getElementById('registerOverlay').style.display = 'none';
+                loadUserData();
+                loadFriends();
+            }
+            loadChatMessages();
+        }
+
+        function loadUserData() {
+            if (!userId) return;
+            db.ref('tth_users/' + userId).on('value', function(snap) {
+                userData = snap.val() || {};
+                if (!userData.nickname) {
+                    userData.nickname = '天堂用户';
+                    userData.signature = '';
+                    userData.avatar = '';
+                    userData.thId = userId;
+                    db.ref('tth_users/' + userId).set(userData);
+                }
+                userData.thId = userId;
+                updateAllUI();
+            });
+        }
+
+function saveUserData() {
+    if (!userId) return;
+    userData.thId = userId;
+    localStorage.setItem('tth_user_data_' + userId, JSON.stringify(userData));
+    db.ref('tth_users/' + userId).set(userData);
+}
+
+        function loadFriends() {
+            if (!userId) return;
+            db.ref('tth_friends/' + userId).on('value', function(snap) {
+                friends = snap.val() || {};
+                renderMsgList();
+            });
+        }
+
+        function updateAllUI() {
+            var avatarUrl = userData.avatar || '';
+            var name = userData.nickname || '天堂用户';
+            document.getElementById('navNickname').textContent = name;
+            document.getElementById('profileName').textContent = name;
+            document.getElementById('spaceName').textContent = name;
+            document.getElementById('profileThId').textContent = '天堂号：' + (userId || '未设置');
+            if (avatarUrl) {
+                document.getElementById('navAvatar').innerHTML = '<img src="' + avatarUrl + '">';
+                document.getElementById('profileAvatar').innerHTML = '<img src="' + avatarUrl + '">';
+                document.getElementById('spaceAvatar').innerHTML = '<img src="' + avatarUrl + '">';
+            }
+            var sigEl = document.getElementById('profileSignature');
+            if (userData.signature) {
+                sigEl.textContent = userData.signature;
+                sigEl.classList.add('has-value');
+            } else {
+                sigEl.textContent = '编辑个签，展示我的独特态度。';
+                sigEl.classList.remove('has-value');
+            }
+        }
+
+        function renderMsgList() {
+            var container = document.getElementById('msgList');
+            var html = '<div class="msg-item" onclick="openChat(\'robot\')"><div class="msg-item-avatar">🤖</div><div class="msg-item-info"><div class="msg-item-name">雾化机器人</div><div class="msg-item-preview">你好，我是雾化机器人~</div></div><div class="msg-item-time"></div></div>';
+            Object.keys(friends).forEach(function(fid) {
+                var f = friends[fid];
+                html += '<div class="msg-item" onclick="openChat(\'' + fid + '\')"><div class="msg-item-avatar">' + (f.avatar ? '<img src="' + f.avatar + '">' : '👤') + '</div><div class="msg-item-info"><div class="msg-item-name">' + (f.nickname || fid) + '</div><div class="msg-item-preview"></div></div><div class="msg-item-time"></div></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        window.registerUser = function() {
+            var inputId = document.getElementById('registerIdInput').value.trim();
+            var errEl = document.getElementById('registerError');
+            if (!inputId || isNaN(inputId) || inputId.length < 1) { errEl.textContent = '请输入有效的数字ID';
+                errEl.style.display = 'block'; return; }
+            db.ref('tth_registered_ids/' + inputId).once('value', function(snap) {
+                if (snap.exists()) { errEl.textContent = '该ID已被注册';
+                    errEl.style.display = 'block'; } else { userId = inputId;
+                    localStorage.setItem('tth_user_id', userId);
+                    db.ref('tth_registered_ids/' + userId).set(true);
+                    userData = { nickname: '天堂用户', signature: '', avatar: '', thId: userId };
+                    db.ref('tth_users/' + userId).set(userData);
+                    document.getElementById('registerOverlay').style.display = 'none';
+                    loadUserData();
+                    loadFriends(); }
+            });
+        };
+
+        function navigateTo(pageId, animation) {
+            var oldPage = document.querySelector('.page.active');
+            var newPage = document.getElementById(pageId);
+            if (oldPage === newPage) return;
+            pageHistory.push(oldPage ? oldPage.id : null);
+
+            if (animation === 'slideInRight') {
+                if (oldPage) { oldPage.classList.add('slide-out');
+                    oldPage.addEventListener('animationend', function() { oldPage.classList.remove('active',
+                            'slide-out');
+                        oldPage.style.display = 'none'; }, { once: true }); }
+                newPage.classList.add('slide-in');
+                newPage.addEventListener('animationend', function() { newPage.classList.remove('slide-in');
+                    newPage.classList.add('active'); }, { once: true });
+            } else if (animation === 'slideBack') {
+                if (oldPage) { oldPage.style.display = 'none';
+                    oldPage.classList.remove('active'); }
+                newPage.classList.add('slide-back');
+                newPage.addEventListener('animationend', function() { newPage.classList.remove('slide-back');
+                    newPage.classList.add('active'); }, { once: true });
+            } else {
+                if (oldPage) { oldPage.classList.remove('active');
+                    oldPage.style.display = 'none'; }
+                newPage.classList.add('active');
+                newPage.style.display = 'flex';
+            }
+        }
+
+        function goBack() {
+            var prevPageId = pageHistory.pop();
+            if (!prevPageId) { navigateTo('msgListPage', 'slideBack'); return; }
+            navigateTo(prevPageId, 'slideBack');
+        }
+
+        function showAddMenu() {
+            var overlay = document.createElement('div');
+            overlay.className = 'popup-menu-overlay';
+            overlay.innerHTML =
+                '<div class="popup-menu"><div class="popup-menu-item" onclick="this.parentElement.parentElement.remove();navigateTo(\'searchPage\',\'slideInRight\')">➕ 加好友</div></div>';
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        }
+
+        function openProfile() { updateAllUI();
+            navigateTo('profilePage', 'slideInRight'); }
+
+        function goBackFromProfile() { goBack(); }
+
+        function openSpace() { navigateTo('spacePage', 'slideInRight');
+            document.getElementById('spacePosts').innerHTML = ''; }
+
+        function goBackFromSpace() { goBack(); }
+
+        function changeAvatar() { document.getElementById('avatarInput').click(); }
+
+        function handleAvatarChange(event) { var file = event.target.files[0]; if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(e) { userData.avatar = e.target.result;
+                saveUserData();
+                updateAllUI(); };
+            reader.readAsDataURL(file); }
+
+        function editProfile() {
+            var overlay = document.createElement('div');
+            overlay.className = 'edit-overlay';
+            overlay.innerHTML =
+                '<div class="edit-dialog"><div style="font-weight:600;margin-bottom:12px;">编辑资料</div><input id="editNickname" placeholder="昵称" value="' +
+                (userData.nickname || '') + '"><textarea id="editSignature" placeholder="个性签名" maxlength="50">' + (userData
+                    .signature || '') +
+                '</textarea><div class="btn-row"><button class="btn-cancel" onclick="this.parentElement.parentElement.parentElement.remove()">取消</button><button class="btn-save" onclick="saveEdit(this)">保存</button></div></div>';
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        }
+
+        function saveEdit(btn) {
+            var nickname = document.getElementById('editNickname').value.trim();
+            var signature = document.getElementById('editSignature').value.trim().slice(0, 50);
+            if (nickname) userData.nickname = nickname;
+            userData.signature = signature;
+            saveUserData();
+            updateAllUI();
+            btn.parentElement.parentElement.parentElement.remove();
+        }
+
+        function loadChatMessages() { db.ref('tth_chat').on('value', function(snap) { chatMessages = snap.val() || {}; }); }
+
+        function openChat(target) {
+            currentChat = target;
+            var name = target === 'robot' ? '雾化机器人' : (friends[target] ? friends[target].nickname || target : target);
+            document.getElementById('chatTitle').textContent = name;
+            navigateTo('chatPage', 'slideInRight');
+            renderChatMessages();
+            if (target === 'robot') {
+                setTimeout(function() {
+                    if (!chatMessages['robot'] || Object.keys(chatMessages['robot']).length === 0) {
+                        var w = { from: 'robot', text: '你好！我是雾化机器人🤖', time: Date.now(), type: 'text' };
+                        if (!chatMessages['robot']) chatMessages['robot'] = {};
+                        chatMessages['robot']['welcome'] = w;
+                        db.ref('tth_chat/robot/welcome').set(w);
+                        renderChatMessages();
+                    }
+                }, 300);
+            }
+        }
+
+        function renderChatMessages() {
+            var container = document.getElementById('chatMessages');
+            container.innerHTML = '';
+            var msgs = chatMessages[currentChat] || {};
+            var keys = Object.keys(msgs).sort(function(a, b) { return msgs[a].time - msgs[b].time; });
+            keys.forEach(function(k) {
+                var msg = msgs[k];
+                var isMine = msg.from === userId;
+                var row = document.createElement('div');
+                row.className = 'chat-msg-row ' + (isMine ? 'mine' : 'other');
+                var avatar = document.createElement('div');
+                avatar.className = 'chat-msg-avatar';
+                if (isMine) { avatar.innerHTML = userData.avatar ? '<img src="' + userData.avatar + '">' : '👤'; } else { avatar
+                        .textContent = msg.from === 'robot' ? '🤖' : '👤'; }
+                var bubble = document.createElement('div');
+                bubble.className = 'chat-msg-bubble';
+                bubble.textContent = msg.text;
+                row.appendChild(bubble);
+                row.appendChild(avatar);
+                container.appendChild(row);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendMessage() {
+            var input = document.getElementById('chatInput');
+            var text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            if (!chatMessages[currentChat]) chatMessages[currentChat] = {};
+            var key = 'msg_' + Date.now();
+            var msgData = { from: userId, text: text, time: Date.now(), type: 'text' };
+            chatMessages[currentChat][key] = msgData;
+            db.ref('tth_chat/' + currentChat + '/' + key).set(msgData);
+            renderChatMessages();
+            if (currentChat === 'robot') {
+                setTimeout(function() {
+                    var rk = 'reply_' + Date.now();
+                    var rd = { from: 'robot', text: getRobotReply(text), time: Date.now(), type: 'text' };
+                    chatMessages[currentChat][rk] = rd;
+                    db.ref('tth_chat/' + currentChat + '/' + rk).set(rd);
+                    renderChatMessages();
+                }, 800);
+            }
+        }
+
+        function getRobotReply(msg) {
+            var l = msg.toLowerCase();
+            if (l.indexOf('你好') !== -1) return '你好呀~ 😊';
+            if (l.indexOf('你是谁') !== -1) return '我是雾化机器人！';
+            if (l.indexOf('天气') !== -1) return '今天天气不错~ ☀️';
+            return '收到你的消息了~';
+        }
+
+        function goBack() {
+    var pages = document.querySelectorAll('.page');
+    pages.forEach(function(p) { p.classList.remove('active', 'slide-in', 'slide-out', 'slide-back'); p.style.display = ''; });
+    document.getElementById('msgListPage').classList.add('active');
+}
+
+        function goBackFromSearch() { goBack(); }
+
+        function setSearchTab(tab, el) {
+            currentSearchTab = tab;
+            document.querySelectorAll('.search-tab').forEach(function(t) { t.classList.remove('active'); });
+            el.classList.add('active');
+            document.getElementById('searchResults').innerHTML = '';
+        }
+
+        function doSearch() {
+            var query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+            db.ref('tth_users').once('value', function(snap) {
+                var results = [];
+                snap.forEach(function(child) {
+                    var u = child.val();
+                    if (child.key !== userId && (child.key.indexOf(query) !== -1 || (u.nickname && u.nickname.indexOf(
+                            query) !== -1))) { results.push({ id: child.key, data: u }); }
+                });
+                renderSearchResults(results);
+            });
+        }
+
+        function renderSearchResults(results) {
+            var el = document.getElementById('searchResults');
+            if (results.length === 0) { el.innerHTML =
+                    '<div style="text-align:center;padding:40px;color:#b0b0b0;">未找到相关用户</div>'; return; }
+            el.innerHTML = results.map(function(r) {
+                return '<div class="search-result-item" onclick="viewUser(\'' + r.id +
+                    '\')"><div class="search-result-avatar">' + (r.data.avatar ? '<img src="' + r.data.avatar + '">' :
+                    '👤') + '</div><div class="search-result-info"><div class="search-result-name">' + (r.data.nickname ||
+                    r.id) + '</div><div class="search-result-th-id">天堂号：' + r.id + '</div></div></div>';
+            }).join('');
+        }
+
+        function viewUser(uid) {
+            db.ref('tth_users/' + uid).once('value', function(snap) {
+                var u = snap.val() || {};
+                viewingUser = uid;
+                document.getElementById('userProfileAvatar').innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
+                document.getElementById('userProfileName').textContent = u.nickname || uid;
+                document.getElementById('userProfileThId').textContent = '天堂号：' + uid;
+                document.getElementById('userProfileAddBtn').style.display = friends[uid] ? 'none' : 'block';
+                navigateTo('userProfilePage', 'slideInRight');
+            });
+        }
+
+        function goBackFromUserProfile() { viewingUser = null;
+            goBack(); }
+
+        function addFriend() {
+            if (!viewingUser) return;
+            db.ref('tth_users/' + viewingUser).once('value', function(snap) {
+                var u = snap.val() || {};
+                friends[viewingUser] = { nickname: u.nickname || viewingUser, avatar: u.avatar || '', signature: u.signature || '',
+                    thId: viewingUser };
+                db.ref('tth_friends/' + userId + '/' + viewingUser).set(friends[viewingUser]);
+                db.ref('tth_friends/' + viewingUser + '/' + userId).set({ nickname: userData.nickname || userId, avatar: userData.avatar || '',
+                    signature: userData.signature || '', thId: userId });
+                alert('已添加 ' + (u.nickname || viewingUser) + ' 为好友！');
+                renderMsgList();
+                navigateTo('msgListPage', 'slideBack');
+            });
+        }
+
+        function openUserSpace() { alert('空间功能开发中'); }
+
+        function newPost() { var t = prompt('发一条动态：'); if (t && t.trim()) { var d = document.createElement('div');
+                d.style.cssText = 'padding:12px;background:#fff;margin-bottom:8px;border-radius:8px;font-size:14px;';
+                d.textContent = t;
+                document.getElementById('spacePosts').appendChild(d); } }
+
+        init();
+        console.log('🚀 天堂社区已启动');
+    </script>
+</body>
+</html>
