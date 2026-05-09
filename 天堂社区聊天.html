@@ -7,7 +7,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
-    /* ========== VIP/SVIP 特效 ========== */
+  
 /* ========== VIP/SVIP 特效 ========== */
 .vip-badge {
     display: inline-flex;
@@ -57,6 +57,58 @@
     0% { left: -100%; }
     50% { left: 100%; }
     100% { left: 100%; }
+}
+/* ========== 创建群聊 ========== */
+.create-group-overlay {
+    position: fixed; inset: 0; z-index: 8000; background: rgba(0,0,0,0.5);
+    display: flex; align-items: flex-end; justify-content: center;
+}
+.create-group-dialog {
+    background: #fff; border-radius: 16px 16px 0 0; padding: 20px;
+    width: 100%; max-width: 500px; max-height: 70vh; overflow-y: auto;
+}
+.create-group-item {
+    display: flex; align-items: center; padding: 12px 8px; gap: 10px;
+    border-bottom: 1px solid #f0f0f0; cursor: pointer;
+}
+.create-group-item .check-box {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid #ccc; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+}
+.create-group-item.selected .check-box { background: #07c160; border-color: #07c160; }
+.create-group-item.selected .check-box::after { content: '✓'; color: #fff; font-size: 14px; }
+
+/* ========== 群聊设置页 ========== */
+.group-info-page { background: #f5f5f5; overflow-y: auto; }
+.group-info-header {
+    background: #fff; padding: 20px; text-align: center;
+    border-bottom: 1px solid var(--border);
+}
+.group-info-name { font-size: 18px; font-weight: 700; color: var(--text-dark); }
+.group-info-id { font-size: 12px; color: var(--text-gray); margin-top: 4px; }
+.group-member-count-text { font-size: 13px; color: var(--text-gray); margin-top: 8px; }
+.group-member-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 16px; justify-content: flex-start; }
+.group-member-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    width: 56px; cursor: pointer;
+}
+.group-member-avatar {
+    width: 40px; height: 40px; border-radius: 50%; background: #e0e0e0;
+    display: flex; align-items: center; justify-content: center; font-size: 18px; overflow: hidden;
+}
+.group-member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.group-member-name { font-size: 10px; color: var(--text-dark); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
+.group-section { background: #fff; margin-top: 10px; padding: 0 16px; }
+.group-section-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid #f0f0f0;
+    font-size: 15px; color: var(--text-dark); cursor: pointer;
+}
+.group-section-item:last-child { border-bottom: none; }
+.group-section-item .arrow { color: #ccc; font-size: 18px; }
+.group-owner-badge {
+    font-size: 9px; background: #f80; color: #fff; padding: 1px 4px;
+    border-radius: 3px; margin-left: 4px;
 }
 .online-dot {
     display: inline-block;
@@ -1175,6 +1227,62 @@
             </div>
             <div class="search-results" id="searchResults"></div>
         </div>
+        
+        
+        <!-- 创建群聊页 -->
+<div class="page" id="createGroupPage">
+    <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div class="chat-back" onclick="goBack()">←</div>
+        <span style="font-size:17px;font-weight:600;">选择好友创建群聊</span>
+        <button onclick="confirmCreateGroup()" style="margin-left:auto;padding:6px 14px;background:#07c160;color:#fff;border:none;border-radius:16px;font-size:14px;">创建</button>
+    </div>
+    <div style="padding:8px 0;font-size:13px;color:#999;text-align:center;">至少选择2个好友（加上你共3人）</div>
+    <div id="createGroupFriendList" style="flex:1;overflow-y:auto;background:#fff;"></div>
+</div>
+
+<!-- 群聊页 -->
+<div class="page chat-page" id="groupChatPage">
+    <div class="chat-header">
+        <div class="chat-back" onclick="goBack()">←</div>
+        <div class="chat-title" id="groupChatTitle">群聊</div>
+        <div style="font-size:20px;cursor:pointer;padding:4px 8px;" onclick="openGroupInfo()">≡</div>
+    </div>
+    <div class="chat-messages" id="groupChatMessages"></div>
+    <div class="chat-input-area">
+        <input type="file" accept="image/*" id="groupChatImageInput" style="display:none;" onchange="sendGroupImage()">
+        <button style="width:36px;height:36px;border-radius:50%;background:#f0f0f0;border:none;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" onclick="document.getElementById('groupChatImageInput').click()">+</button>
+        <input type="text" class="chat-input" id="groupChatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendGroupMessage()">
+        <button class="chat-send-btn" onclick="sendGroupMessage()">发送</button>
+    </div>
+</div>
+
+<!-- 群聊信息页 -->
+<div class="page group-info-page" id="groupInfoPage">
+    <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div class="chat-back" onclick="goBackFromGroupInfo()">←</div>
+        <span style="font-size:17px;font-weight:600;flex:1;text-align:center;margin-right:32px;">聊天信息</span>
+    </div>
+    <div class="group-info-header">
+        <div class="group-info-name" id="groupInfoName" onclick="editGroupName()">群聊</div>
+        <div class="group-info-id" id="groupInfoId"></div>
+        <div class="group-member-count-text">群成员 <span id="groupMemberCountNum">3</span>人</div>
+    </div>
+    <div style="background:#fff;padding:0 16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;" onclick="document.getElementById('groupMemberList').scrollIntoView()">
+            <span style="font-size:15px;color:#1a1a1a;">群成员</span>
+            <span style="color:#b0b0b0;font-size:14px;" id="groupMemberCount2">3人 ›</span>
+        </div>
+        <div class="group-member-list" id="groupMemberList"></div>
+    </div>
+    <div class="group-section" id="groupActions">
+        <div class="group-section-item" onclick="inviteToGroup()">邀请<span class="arrow">›</span></div>
+        <div class="group-section-item" onclick="removeFromGroup()" style="color:#f55;display:none;" id="removeBtn">移除<span class="arrow">›</span></div>
+        <div class="group-section-item" onclick="editGroupName()">群名称<span class="item-right" id="groupNameValue" style="flex:1;text-align:right;color:#b0b0b0;font-size:14px;">群聊</span><span class="arrow">›</span></div>
+        <div class="group-section-item">群备注<span class="item-right" style="color:#b0b0b0;font-size:14px;">未设置</span><span class="arrow">›</span></div>
+        <div class="group-section-item" style="display:none;" id="announceBtn">群公告<span class="item-right" style="color:#b0b0b0;font-size:14px;">未设置</span><span class="arrow">›</span></div>
+        <div class="group-section-item" style="display:none;" id="manageBtn">管理群<span class="item-right" style="color:#999;font-size:13px;">加群设置、发言管理等</span><span class="arrow">›</span></div>
+    </div>
+</div>
 
         <!-- 空间页 -->
         <div class="page space-page" id="spacePage">
@@ -1230,6 +1338,7 @@ function init() {
         loadUserData();
         loadFriends();
         startOnlineListener();  // 加这行
+        loadGroups();
     }
 }
 
@@ -1285,7 +1394,11 @@ function saveUserData() {
             document.getElementById('navNickname').textContent = name;
             document.getElementById('profileName').textContent = name;
             document.getElementById('spaceName').textContent = name;
-            document.getElementById('profileThId').innerHTML = '天堂号：<span style="display:inline-flex;align-items:center;gap:2px;background:linear-gradient(135deg,#1a1a0e,#0d0d05);padding:3px 8px;border-radius:14px;border:1px solid rgba(212,168,67,0.4);position:relative;overflow:hidden;vertical-align:middle;"><span style="background:#d4a843;color:#0d0d05;padding:1px 5px;border-radius:10px;font-weight:700;font-size:9px;flex-shrink:0;line-height:1.2;">靓</span><span style="color:rgba(212,168,67,0.4);font-size:10px;margin:0 1px;">/</span><span style="color:#d4a843;font-weight:600;font-size:11px;letter-spacing:0.3px;">' + (userId || '未设置') + '</span><span style="position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,215,0,0.25),transparent);animation:靓号Scan 3s ease-in-out infinite;"></span></span>';
+            if (userData.isVIP) {
+    document.getElementById('profileThId').innerHTML = '天堂号：<span style="display:inline-flex;align-items:center;gap:2px;background:linear-gradient(135deg,#1a1a0e,#0d0d05);padding:3px 8px;border-radius:14px;border:1px solid rgba(212,168,67,0.4);position:relative;overflow:hidden;vertical-align:middle;"><span style="background:#d4a843;color:#0d0d05;padding:1px 5px;border-radius:10px;font-weight:700;font-size:9px;flex-shrink:0;line-height:1.2;">靓</span><span style="color:rgba(212,168,67,0.4);font-size:10px;margin:0 1px;">/</span><span style="color:#d4a843;font-weight:600;font-size:11px;letter-spacing:0.3px;">' + (userId || '未设置') + '</span><span style="position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,215,0,0.25),transparent);animation:靓号Scan 3s ease-in-out infinite;"></span></span>';
+} else {
+    document.getElementById('profileThId').textContent = '天堂号：' + (userId || '未设置');
+}
             if (avatarUrl) {
                 document.getElementById('navAvatar').innerHTML = '<img src="' + avatarUrl + '">';
                 document.getElementById('profileAvatar').innerHTML = '<img src="' + avatarUrl + '">';
@@ -1310,7 +1423,14 @@ function renderMsgList() {
         html += '<div class="msg-item" onclick="openChat(\'' + fid + '\')"><div class="msg-item-avatar">' + (f.avatar ? '<img src="' + f.avatar + '">' : '👤') + '</div><div class="msg-item-info"><div class="msg-item-name">' + (f.nickname || fid) + '</div><div class="msg-item-preview" id="status_' + fid + '">加载中...</div></div><div class="msg-item-time"></div></div>';
     });
     container.innerHTML = html;
-}
+    Object.keys(groups).forEach(function(gid) {
+        var g = groups[gid];
+        if (g.members && g.members[userId]) {
+            var ghtml = '<div class="msg-item" onclick="openGroupChat(\'' + gid + '\')"><div class="msg-item-avatar">👥</div><div class="msg-item-info"><div class="msg-item-name">' + (g.name || '群聊') + '</div><div class="msg-item-preview"></div></div><div class="msg-item-time"></div></div>';
+            container.innerHTML += ghtml;
+        }
+    });
+};
 
 // 一次性监听所有好友在线状态，不再单个请求
 function startOnlineListener() {
@@ -1419,7 +1539,7 @@ function goBack() {
 function showAddMenu() {
     var overlay = document.createElement('div');
     overlay.className = 'popup-menu-overlay';
-    overlay.innerHTML = '<div class="popup-menu"><div class="popup-menu-item" onclick="this.parentElement.parentElement.remove();navigateTo(\'searchPage\',\'slideInRight\')">➕ 加好友</div></div>';
+    overlay.innerHTML = '<div class="popup-menu"><div class="popup-menu-item" onclick="this.parentElement.parentElement.remove();navigateTo(\'searchPage\',\'slideInRight\')">加好友</div><div class="popup-menu-item" onclick="this.parentElement.parentElement.remove();showCreateGroup()">创建群聊</div></div>';
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
 }
@@ -1738,6 +1858,256 @@ function goBackFromUserProfile() {
                 document.getElementById('spacePosts').appendChild(d); } }
 
         init();
+        // ========== 群聊系统 ==========
+var groups = {};
+var currentGroupId = null;
+
+// 加载群聊数据
+function loadGroups() {
+    if (!userId) return;
+    db.ref('tth_groups').on('value', function(snap) {
+        groups = snap.val() || {};
+        renderMsgList(); // 刷新消息列表显示群聊
+    });
+}
+
+// 在 init() 里加 loadGroups()
+// 找到 init 函数，加一行 loadGroups();
+
+// 修改 renderMsgList，加入群聊显示
+
+
+// 显示创建群聊页面
+window.showCreateGroup = function() {
+    var container = document.getElementById('createGroupFriendList');
+    var html = '';
+    Object.keys(friends).forEach(function(fid) {
+        var f = friends[fid];
+        html += '<div class="create-group-item" id="cg_' + fid + '" onclick="toggleSelectFriend(\'' + fid + '\')"><div class="check-box"></div><div class="msg-item-avatar" style="width:40px;height:40px;">' + (f.avatar ? '<img src="' + f.avatar + '">' : '👤') + '</div><div>' + (f.nickname || fid) + '</div></div>';
+    });
+    container.innerHTML = html || '<div style="text-align:center;padding:40px;color:#999;">暂无好友</div>';
+    navigateTo('createGroupPage', 'slideInRight');
+};
+
+var selectedFriends = {};
+window.toggleSelectFriend = function(fid) {
+    if (selectedFriends[fid]) { delete selectedFriends[fid]; }
+    else { selectedFriends[fid] = true; }
+    var el = document.getElementById('cg_' + fid);
+    if (el) el.classList.toggle('selected');
+};
+
+window.confirmCreateGroup = function() {
+    var ids = Object.keys(selectedFriends).filter(function(k) { return selectedFriends[k]; });
+    if (ids.length < 2) { alert('至少选择2个好友（当前已选' + ids.length + '个）'); return; }
+    
+    db.ref('tth_groupCounter').once('value', function(snap) {
+        var counter = (snap.val() || 1887) + 1;
+        db.ref('tth_groupCounter').set(counter);
+        var groupId = 'group_' + counter;
+        var groupData = {
+            name: '群聊',
+            owner: userId,
+            members: { },
+            createTime: Date.now(),
+            groupNumber: counter
+        };
+        groupData.members[userId] = { joinedAt: Date.now() };
+        ids.forEach(function(fid) { groupData.members[fid] = { joinedAt: Date.now() }; });
+        
+        db.ref('tth_groups/' + groupId).set(groupData);
+        selectedFriends = {};
+        navigateTo('msgListPage', 'slideBack');
+        alert('群聊创建成功！群号：' + counter);
+    });
+};
+
+// 打开群聊
+window.openGroupChat = function(groupId) {
+    currentGroupId = groupId;
+    currentChat = groupId;
+    var g = groups[groupId] || {};
+    var memberCount = g.members ? Object.keys(g.members).length : 0;
+    document.getElementById('groupChatTitle').textContent = (g.name || '群聊') + '(' + memberCount + ')';
+    navigateTo('groupChatPage', 'slideInRight');
+    loadAndRenderGroupChat();
+};
+
+function loadAndRenderGroupChat() {
+    var chatPath = 'group_' + currentGroupId;
+    db.ref('tth_chat/' + chatPath).on('value', function(snap) {
+        if (!chatMessages[currentGroupId]) chatMessages[currentGroupId] = {};
+        chatMessages[currentGroupId] = snap.val() || {};
+        renderGroupChatMessages();
+    });
+}
+
+function renderGroupChatMessages() {
+    var container = document.getElementById('groupChatMessages');
+    if (!container) return;
+    container.innerHTML = '';
+    var msgs = chatMessages[currentGroupId] || {};
+    var keys = Object.keys(msgs).sort(function(a, b) { return (msgs[a]||{}).time - (msgs[b]||{}).time; });
+    keys.forEach(function(k) {
+        var msg = msgs[k] || {};
+        var isMine = msg.from === userId;
+        var g = groups[currentGroupId] || {};
+        var isOwner = msg.from === g.owner;
+        
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;' + (isMine ? 'flex-direction:row-reverse;' : '');
+        
+        var avatar = document.createElement('div');
+        avatar.className = 'chat-msg-avatar';
+        db.ref('tth_users/' + msg.from).once('value', function(snap) {
+            var u = snap.val() || {};
+            avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
+        });
+        
+        var content = document.createElement('div');
+        content.style.cssText = 'max-width:70%;';
+        
+        var nameDiv = document.createElement('div');
+        nameDiv.style.cssText = 'font-size:11px;color:#999;margin-bottom:2px;';
+        nameDiv.innerHTML = (isOwner ? '<span class="group-owner-badge">群主</span>' : '') + (msg.fromName || msg.from);
+        if (isMine) nameDiv.style.textAlign = 'right';
+        
+        var bubble = document.createElement('div');
+        bubble.className = 'chat-msg-bubble';
+        bubble.style.cssText = isMine ? 'background:#cceeff;' : 'background:#fff;';
+        bubble.textContent = msg.text;
+        
+        content.appendChild(nameDiv);
+        content.appendChild(bubble);
+        
+        if (isMine) { row.appendChild(content); row.appendChild(avatar); }
+        else { row.appendChild(avatar); row.appendChild(content); }
+        container.appendChild(row);
+    });
+    container.scrollTop = container.scrollHeight;
+}
+
+function sendGroupMessage() {
+    var input = document.getElementById('groupChatInput');
+    if (!input) return;
+    var text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    
+    var chatPath = 'group_' + currentGroupId;
+    var key = 'msg_' + Date.now();
+    var msgData = { from: userId, fromName: userData.nickname || userId, text: text, time: Date.now(), type: 'text' };
+    db.ref('tth_chat/' + chatPath + '/' + key).set(msgData);
+}
+
+function sendGroupImage() {
+    var file = document.getElementById('groupChatImageInput').files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var chatPath = 'group_' + currentGroupId;
+        var key = 'img_' + Date.now();
+        var msgData = { from: userId, fromName: userData.nickname || userId, text: e.target.result, time: Date.now(), type: 'image' };
+        db.ref('tth_chat/' + chatPath + '/' + key).set(msgData);
+    };
+    reader.readAsDataURL(file);
+    document.getElementById('groupChatImageInput').value = '';
+}
+
+// 群聊设置页
+window.openGroupInfo = function() {
+    var g = groups[currentGroupId] || {};
+    var members = g.members || {};
+    var memberIds = Object.keys(members);
+    document.getElementById('groupInfoName').textContent = g.name || '群聊';
+    document.getElementById('groupNameValue').textContent = g.name || '群聊';
+    document.getElementById('groupInfoId').textContent = '群号：' + (g.groupNumber || '') + ' 不允许被搜索';
+    document.getElementById('groupMemberCountNum').textContent = memberIds.length;
+    document.getElementById('groupMemberCount2').textContent = memberIds.length + '人 ›';
+    
+    var isOwner = g.owner === userId;
+    document.getElementById('removeBtn').style.display = isOwner ? 'flex' : 'none';
+    document.getElementById('announceBtn').style.display = isOwner ? 'flex' : 'none';
+    document.getElementById('manageBtn').style.display = isOwner ? 'flex' : 'none';
+    
+    var memberHTML = '';
+    var loadedCount = 0;
+    memberIds.forEach(function(mid) {
+        db.ref('tth_users/' + mid).once('value', function(snap) {
+            var u = snap.val() || {};
+            memberHTML += '<div class="group-member-item" onclick="viewUser(\'' + mid + '\')"><div class="group-member-avatar">' + (u.avatar ? '<img src="' + u.avatar + '">' : '👤') + '</div><div class="group-member-name">' + (u.nickname || mid) + '</div></div>';
+            loadedCount++;
+            if (loadedCount === memberIds.length) {
+                document.getElementById('groupMemberList').innerHTML = memberHTML;
+            }
+        });
+    });
+    
+    navigateTo('groupInfoPage', 'slideInRight');
+};
+
+// 修改群名称
+window.editGroupName = function() {
+    var g = groups[currentGroupId] || {};
+    var newName = prompt('请输入新群名称：', g.name || '群聊');
+    if (newName && newName.trim()) {
+        g.name = newName.trim();
+        db.ref('tth_groups/' + currentGroupId + '/name').set(g.name);
+        document.getElementById('groupInfoName').textContent = g.name;
+        document.getElementById('groupNameValue').textContent = g.name;
+        document.getElementById('groupChatTitle').textContent = g.name + '(' + Object.keys(g.members||{}).length + ')';
+    }
+};
+
+function goBackFromGroupInfo() { goBack(); }
+
+// 邀请好友
+window.inviteToGroup = function() {
+    var overlay = document.createElement('div');
+    overlay.className = 'create-group-overlay';
+    overlay.innerHTML = '<div class="create-group-dialog"><div style="font-weight:600;margin-bottom:12px;">邀请好友加入群聊</div><div id="inviteFriendList"></div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    
+    var listEl = document.getElementById('inviteFriendList');
+    var html = '';
+    Object.keys(friends).forEach(function(fid) {
+        if (!groups[currentGroupId].members[fid]) {
+            html += '<div class="create-group-item" onclick="doInvite(\'' + fid + '\', this)"><div class="msg-item-avatar" style="width:36px;height:36px;">👤</div><div>' + (friends[fid].nickname || fid) + '</div></div>';
+        }
+    });
+    listEl.innerHTML = html || '<div style="text-align:center;padding:20px;color:#999;">没有可邀请的好友</div>';
+};
+
+window.doInvite = function(fid, el) {
+    db.ref('tth_groups/' + currentGroupId + '/members/' + fid).set({ joinedAt: Date.now() });
+    el.style.opacity = '0.5';
+    el.onclick = null;
+    alert('已邀请 ' + fid);
+};
+
+// 移除成员
+window.removeFromGroup = function() {
+    var g = groups[currentGroupId] || {};
+    var members = Object.keys(g.members || {}).filter(function(m) { return m !== userId; });
+    if (members.length === 0) { alert('没有可移除的成员'); return; }
+    var overlay = document.createElement('div');
+    overlay.className = 'create-group-overlay';
+    overlay.innerHTML = '<div class="create-group-dialog"><div style="font-weight:600;margin-bottom:12px;">移除群成员</div><div id="removeMemberList"></div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    var listEl = document.getElementById('removeMemberList');
+    listEl.innerHTML = members.map(function(mid) {
+        return '<div class="create-group-item" onclick="doRemove(\'' + mid + '\', this)"><div class="msg-item-avatar" style="width:36px;height:36px;">👤</div><div>' + mid + '</div></div>';
+    }).join('');
+};
+
+window.doRemove = function(mid, el) {
+    db.ref('tth_groups/' + currentGroupId + '/members/' + mid).remove();
+    el.style.opacity = '0.5';
+    el.onclick = null;
+    alert('已移除 ' + mid);
+};;
         console.log('🚀 天堂社区已启动');
     </script>
 </body>
