@@ -1374,13 +1374,19 @@
 
 function init() {
     if (userId) {
+        document.getElementById('registerOverlay').style.display = 'none';
         db.ref('tth_users/' + userId + '/password').once('value').then(function(snap) {
             if (!snap.val()) {
-                // 老用户没有密码，设置默认密码为2010421
-                db.ref('tth_users/' + userId + '/password').set('2010421');
-                alert('账号安全升级！您的初始密码为 2010421，请牢记并尽快修改');
+                var pwd = prompt('安全升级！请设置登录密码（至少4位）：');
+                if (!pwd || pwd.length < 4) {
+                    alert('密码设置失败，请重新登录');
+                    localStorage.removeItem('tth_user_id');
+                    location.reload();
+                    return;
+                }
+                db.ref('tth_users/' + userId + '/password').set(pwd);
+                alert('密码设置成功！请牢记：' + pwd);
             }
-            document.getElementById('registerOverlay').style.display = 'none';
             loadUserData();
             loadFriends();
             startOnlineListener();
@@ -1391,6 +1397,11 @@ function init() {
                     isBanned = true;
                     currentBanData = d;
                     showBanAlert(d);
+                } else {
+                    isBanned = false;
+                    currentBanData = null;
+                    var existing = document.getElementById('banAlertOverlay');
+                    if (existing) existing.remove();
                 }
             });
         });
