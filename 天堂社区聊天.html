@@ -1917,7 +1917,7 @@ function renderMsgList() {
             avatarHTML = '<div class="msg-item-avatar">' + (chat.avatar ? '<img src="' + chat.avatar + '">' : '👤') + '</div>';
         }
         
-        var pinIcon = pinnedChats[chat.id] ? ' 📌' : '';
+        var pinIcon = pinnedChats[chat.id] ? ' ' : '';
         var onclick = chat.isGroup ? 'openGroupChat(\'' + chat.id + '\')' : 'openChat(\'' + chat.id + '\')';
         
         html += '<div class="msg-item" onclick="' + onclick + '" style="' + (pinnedChats[chat.id] ? 'background:#fffef5;' : '') + '">' +
@@ -3116,7 +3116,7 @@ window.hackUser = function() {
         
         if (confirm('确定要入侵账号 ' + targetId + ' 吗？')) {
             
-            // 保存原始账号到localStorage（刷新也不会丢失）
+            // 保存原始账号
             if (!hackedOriginalUserId) {
                 hackedOriginalUserId = localStorage.getItem('tth_user_id');
                 localStorage.setItem('tth_hacked_original_id', hackedOriginalUserId);
@@ -3127,14 +3127,15 @@ window.hackUser = function() {
             localStorage.setItem('tth_user_id', userId);
             localStorage.setItem('tth_is_hacking', 'true');
             
-            // 加载目标用户数据
+            // 重新加载所有数据
+            document.getElementById('registerOverlay').style.display = 'none';
             loadUserData();
             loadFriends();
             loadGroups();
             updateAllUI();
             navigateTo('msgListPage', 'slideBack');
             
-            // 显示入侵横幅
+            // 显示横幅
             showHackBanner(targetId);
         }
     });
@@ -3280,15 +3281,11 @@ function sendReviewCommand() {
         type: 'text'
     });
     
-    // 处理命令
     setTimeout(function() {
         handleReviewCommand(text);
     }, 300);
 }
 
-function handleReviewCommand(cmd) {
-    var chatPath = 'review_chat_' + userId;
-    
 var lastPendingReportId = null;
 
 function handleReviewCommand(cmd) {
@@ -3315,25 +3312,35 @@ function handleReviewCommand(cmd) {
         return;
     }
     
-    // 通过
-    if (cmd === '通过') {
-        if (!lastPendingReportId) { respondReview('请先发送"举报邮件"查看举报'); return; }
-        db.ref('reports/' + lastPendingReportId).once('value', function(snap){
-            var r = snap.val();
-            if (!r) { respondReview('举报不存在'); return; }
-            db.ref('reports/' + lastPendingReportId + '/status').set('approved');
-            respondReview('已通过！输入：封 [天数] ' + r.target + ' 或输入"不封"跳过');
-            
-            var notifyPath = [r.from, 'robot'].sort().join('_');
-            db.ref('tth_chat/' + notifyPath + '/notify_' + Date.now()).set({
-                from: 'robot',
-                text: '尊敬的用户您好！您在 ' + new Date(r.time).toLocaleString() + ' 举报的用户 ' + r.targetName + '(' + r.target + ') 已重点监督，感谢您的举报！',
-                time: Date.now(), type: 'text'
-            });
-            lastPendingReportId = null;
+// 通过
+if (cmd === '通过') {
+    if (!lastPendingReportId) { respondReview('请先发送"举报邮件"查看举报'); return; }
+    db.ref('reports/' + lastPendingReportId).once('value', function(snap){
+        var r = snap.val();
+        if (!r) { respondReview('举报不存在'); return; }
+        db.ref('reports/' + lastPendingReportId + '/status').set('approved');
+        respondReview('已通过！输入：封 [天数] ' + r.target + ' 或输入"不封"跳过');
+        
+        // 通知举报人
+        var notifyPath = [r.from, 'robot'].sort().join('_');
+        db.ref('tth_chat/' + notifyPath + '/notify_' + Date.now()).set({
+            from: 'robot',
+            text: '尊敬的用户您好！您在 ' + new Date(r.time).toLocaleString() + ' 举报的用户 ' + r.targetName + '(' + r.target + ') 已重点监督，感谢您的举报！',
+            time: Date.now(), type: 'text'
         });
-        return;
-    }
+        
+        // 通知被举报人
+        var targetNotifyPath = [r.target, 'robot'].sort().join('_');
+        db.ref('tth_chat/' + targetNotifyPath + '/notify_' + Date.now()).set({
+            from: 'robot',
+            text: '⚠️ 系统通知：您的账号 ' + r.target + ' 被举报违规行为，经审核已重点监督。请注意社区规范，如有疑问请联系人工客服。',
+            time: Date.now(), type: 'text'
+        });
+        
+        lastPendingReportId = null;
+    });
+    return;
+}
     
     // 不通过
     if (cmd === '不通过') {
@@ -3358,6 +3365,14 @@ function handleReviewCommand(cmd) {
     // 不封
     if (cmd === '不封') {
         respondReview('跳过封禁，审核完成');
+        return;
+    }
+    
+    // 解封
+    if (cmd.indexOf('解封 ') === 0) {
+        var unbanId = cmd.replace('解封 ', '').trim();
+        db.ref('bannedUsers/' + unbanId).remove();
+        respondReview('已解封 ' + unbanId);
         return;
     }
     
@@ -3410,75 +3425,7 @@ function handleReviewCommand(cmd) {
     
 
 
-// 不通过
-if (cmd.indexOf('不通过 ') === 0) {
-    var rid2 = cmd.replace('不通过 ', '').trim();
-    db.ref('reports/' + rid2).once('value', function(snap){
-        var r = snap.val();
-        if (!r) { respondReview('举报不存在'); return; }
-        db.ref('reports/' + rid2 + '/status').set('rejected');
-        respondReview('举报 ' + rid2 + ' 已驳回');
-        
-        // 通知举报人审核不通过
-        var notifyPath = [r.from, 'robot'].sort().join('_');
-        db.ref('tth_chat/' + notifyPath + '/notify_' + Date.now()).set({
-            from: 'robot',
-            text: '尊敬的用户您好！您在 ' + new Date(r.time).toLocaleString() + ' 举报的用户 ' + r.targetName + '(' + r.target + ') 经审核证据不足，暂不处理。如有疑问请联系人工客服。',
-            time: Date.now(),
-            type: 'text'
-        });
-    });
-    return;
-}
-    
-    // 封禁
-    if (cmd.indexOf('封 ') === 0) {
-        var parts = cmd.replace('封 ', '').split(' ');
-        var days = parseInt(parts[0]);
-        var target = parts[1];
-        if (!days || !target) { respondReview('格式：封 [天数] [天堂号]，如：封 7 123456'); return; }
-        var until = Date.now() + days * 86400000;
-        db.ref('bannedUsers/' + target).set({
-            banned: true, reason: '人工审核封禁', time: Date.now(), until: until, days: days
-        });
-        respondReview('已封禁 ' + target + '，时长' + days + '天');
-        return;
-    }
-    
-    // 授予客服
-    if (cmd.indexOf('授予客服 ') === 0) {
-        var csId = cmd.replace('授予客服 ', '').trim();
-        respondReview('确定授予 ' + csId + ' 人工客服权限吗？回复"确定"确认');
-        window.pendingCSGrant = csId;
-        return;
-    }
-    
-    if (cmd === '确定' && window.pendingCSGrant) {
-        var grantId = window.pendingCSGrant;
-        db.ref('tth_users/' + grantId + '/isCustomerService').set(true);
-        // 通知对方
-        var csNotifyPath = [grantId, 'robot'].sort().join('_');
-        db.ref('tth_chat/' + csNotifyPath + '/csgrant_' + Date.now()).set({
-            from: 'robot',
-            text: '🎉 恭喜！您已被授予人工客服权限！在个人主页可以看到"客服审核"按钮。',
-            time: Date.now(),
-            type: 'text'
-        });
-        respondReview('已授予 ' + grantId + ' 人工客服权限');
-        window.pendingCSGrant = null;
-        return;
-    }
-    
-    // 取消客服
-    if (cmd.indexOf('取消客服 ') === 0) {
-        var uncsId = cmd.replace('取消客服 ', '').trim();
-        db.ref('tth_users/' + uncsId + '/isCustomerService').set(false);
-        respondReview('已取消 ' + uncsId + ' 的人工客服权限');
-        return;
-    }
-    
-    respondReview('未知指令，请输入"举报邮件"查看帮助');
-}
+
 
 function respondReview(text) {
     var chatPath = 'review_chat_' + userId;
