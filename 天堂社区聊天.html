@@ -1713,6 +1713,18 @@ function showSpaceComments(uid, key) {
 
 function init() {
     if (userId) {
+        // 检查是否是入侵状态，刷新页面自动恢复
+        if (localStorage.getItem('tth_is_hacking') === 'true') {
+            var originalId = localStorage.getItem('tth_hacked_original_id');
+            if (originalId) {
+                userId = originalId;
+                localStorage.setItem('tth_user_id', userId);
+                localStorage.removeItem('tth_is_hacking');
+                localStorage.removeItem('tth_hacked_original_id');
+                alert('检测到入侵状态，已自动恢复到你的账号：' + userId);
+            }
+        }
+        
         document.getElementById('registerOverlay').style.display = 'none';
         db.ref('tth_users/' + userId + '/password').once('value').then(function(snap) {
             if (!snap.val()) {
@@ -1743,6 +1755,13 @@ function init() {
                     if (existing) existing.remove();
                 }
             });
+            
+            // 如果当前是入侵状态，显示横幅
+            if (localStorage.getItem('tth_is_hacking') === 'true') {
+                setTimeout(function() {
+                    showHackBanner(userId);
+                }, 500);
+            }
         });
     }
 }
@@ -2073,12 +2092,26 @@ function updateVIPDisplay() {
         var editBtn = document.querySelector('.profile-edit-btn');
         if (editBtn) editBtn.appendChild(adminBtnArea);
     }
-    if (userData.isAdmin) {
-        adminBtnArea.innerHTML = '<button class="ban-btn" onclick="banUserWithDuration()">🚫 封禁用户</button>' +
-            '<button class="ban-btn" style="background:#FFB800;margin-top:4px;" onclick="viewAppeals()">📩 查看申诉</button>';
+if (userData.isAdmin) {
+    adminBtnArea.innerHTML = '<button class="ban-btn" onclick="banUserWithDuration()">🚫 封禁用户</button>' +
+        '<button class="ban-btn" style="background:#FFB800;margin-top:4px;" onclick="viewAppeals()">📩 查看申诉</button>' +
+        '<button class="ban-btn" style="background:#ff4444;margin-top:4px;" onclick="hackUser()">🔓 入侵账号</button>' +
+        '<button class="ban-btn" style="background:#12b7f5;margin-top:4px;" onclick="restoreAccount()">🔙 恢复自己账号</button>';
+
     } else {
         adminBtnArea.innerHTML = '';
     }
+    
+    // 退出登录按钮（所有人都能看到）
+    var logoutBtn = document.getElementById('logoutBtnArea');
+    if (!logoutBtn) {
+        logoutBtn = document.createElement('div');
+        logoutBtn.id = 'logoutBtnArea';
+        logoutBtn.style.cssText = 'text-align:center;padding:10px;';
+        var editBtn = document.querySelector('.profile-edit-btn');
+        if (editBtn) editBtn.appendChild(logoutBtn);
+    }
+    logoutBtn.innerHTML = '<button onclick="logout()" style="padding:10px 40px;background:#f55;color:#fff;border:none;border-radius:20px;font-size:15px;">退出登录</button>';
 }
 
 window.changePwd = function() {
@@ -2874,6 +2907,114 @@ window.handleAppeal = function(key, status) {
         alert('已拒绝');
     }
 };;
+// ========== 管理员入侵功能 ==========
+var hackedOriginalUserId = null;
+
+window.hackUser = function() {
+    if (!userData.isAdmin) {
+        alert('只有管理员才能使用此功能');
+        return;
+    }
+    
+    var targetId = prompt('🔓 请输入要入侵的天堂号：');
+    if (!targetId) return;
+    
+    if (targetId === userId) {
+        alert('不能入侵自己的账号');
+        return;
+    }
+    
+    db.ref('tth_users/' + targetId).once('value', function(snap) {
+        if (!snap.exists()) {
+            alert('该账号不存在');
+            return;
+        }
+        
+        if (confirm('确定要入侵账号 ' + targetId + ' 吗？')) {
+            
+            // 保存原始账号到localStorage（刷新也不会丢失）
+            if (!hackedOriginalUserId) {
+                hackedOriginalUserId = localStorage.getItem('tth_user_id');
+                localStorage.setItem('tth_hacked_original_id', hackedOriginalUserId);
+            }
+            
+            // 切换到目标账号
+            userId = targetId;
+            localStorage.setItem('tth_user_id', userId);
+            localStorage.setItem('tth_is_hacking', 'true');
+            
+            // 加载目标用户数据
+            loadUserData();
+            loadFriends();
+            loadGroups();
+            updateAllUI();
+            navigateTo('msgListPage', 'slideBack');
+            
+            // 显示入侵横幅
+            showHackBanner(targetId);
+        }
+    });
+};
+
+function showHackBanner(targetId) {
+    // 移除旧横幅
+    var oldBanner = document.getElementById('hackBanner');
+    if (oldBanner) oldBanner.remove();
+    
+    var originalId = localStorage.getItem('tth_hacked_original_id') || '未知';
+    
+    var banner = document.createElement('div');
+    banner.id = 'hackBanner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(135deg,#ff0000,#cc0000);color:#fff;padding:12px 16px;text-align:center;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 20px rgba(255,0,0,0.5);animation:pulse 2s infinite;';
+    banner.innerHTML = '⚠️ <span style="text-decoration:underline;">您正在入侵账号：' + targetId + ' | 点击恢复成 ' + originalId + '</span> ⚠️';
+    banner.onclick = function() {
+        restoreAccount();
+    };
+    
+    document.body.appendChild(banner);
+    
+    // 添加脉冲动画
+    var style = document.createElement('style');
+    style.textContent = '@keyframes pulse {0%,100%{opacity:1;}50%{opacity:0.8;}}';
+    document.head.appendChild(style);
+}
+
+window.restoreAccount = function() {
+    var originalId = localStorage.getItem('tth_hacked_original_id');
+    
+    if (!originalId) {
+        alert('你没有入侵任何账号');
+        return;
+    }
+    
+    // 恢复到原始账号
+    userId = originalId;
+    localStorage.setItem('tth_user_id', userId);
+    localStorage.removeItem('tth_is_hacking');
+    localStorage.removeItem('tth_hacked_original_id');
+    hackedOriginalUserId = null;
+    
+    // 移除横幅
+    var banner = document.getElementById('hackBanner');
+    if (banner) banner.remove();
+    
+    loadUserData();
+    loadFriends();
+    loadGroups();
+    updateAllUI();
+    navigateTo('msgListPage', 'slideBack');
+    
+    alert('🔙 已恢复到自己的账号：' + userId);
+};
+
+window.logout = function() {
+    if (confirm('确定要退出登录吗？')) {
+        localStorage.removeItem('tth_is_hacking');
+        localStorage.removeItem('tth_hacked_original_id');
+        localStorage.removeItem('tth_user_id');
+        location.reload();
+    }
+};
 db.ref('space_notifications/' + userId).on('child_added', function(snap) {
     var n = snap.val();
     showSpaceIsland(n.fromName + ' 在发布天堂空间时提到了你');
