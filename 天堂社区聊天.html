@@ -1266,6 +1266,7 @@
         <!-- 个人主页（左对齐） -->
         <div class="page profile-page" id="profilePage">
             <div class="profile-header">
+            <input type="file" accept="image/*" id="avatarInput" style="display:none;" onchange="handleAvatarChange(event)">
                 <div class="profile-back" onclick="goBackFromProfile()">←</div>
                 <div class="profile-avatar" id="profileAvatar" onclick="changeAvatar()">👤</div>
                 <div class="profile-header-info">
@@ -2234,7 +2235,9 @@ function renderChatMessages() {
         var bubble = document.createElement('div');
 bubble.className = 'chat-msg-bubble';
 if (msg.type === 'image') {
-    bubble.innerHTML = '<img src="' + msg.text + '" style="max-width:200px;border-radius:8px;">';
+    bubble.innerHTML = '<img src="' + msg.text + '" style="max-width:200px;border-radius:8px;" onclick="viewFullImage(\'' + msg.text + '\')">';
+} else if (msg.type === 'video') {
+    bubble.innerHTML = '<video src="' + msg.text + '" controls style="max-width:200px;border-radius:8px;"></video>';
 } else {
     bubble.textContent = msg.text;
 }
