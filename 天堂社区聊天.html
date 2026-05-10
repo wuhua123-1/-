@@ -110,6 +110,86 @@
     font-size: 9px; background: #f80; color: #fff; padding: 1px 4px;
     border-radius: 3px; margin-left: 4px;
 }
+/* ========== 空间页 ========== */
+.space-page { background: #f5f5f5; overflow-y: auto; }
+
+
+.space-menu-bar {
+    display: flex; background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+}
+.space-menu-item {
+    flex: 1; text-align: center; padding: 14px 0;
+    font-size: 14px; color: #666; cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+.space-menu-item.active { color: #12b7f5; border-bottom-color: #12b7f5; font-weight: 600; }
+.space-empty {
+    text-align: center; padding: 60px 20px; color: #999;
+}
+.space-empty .empty-icon { font-size: 60px; margin-bottom: 12px; }
+.space-post {
+    background: #fff; margin-bottom: 8px; padding: 16px;
+}
+.space-post-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.space-post-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    object-fit: cover; background: #e0e0e0;
+}
+.space-post-name { font-weight: 600; font-size: 15px; color: #1a1a1a; }
+.space-post-time { font-size: 12px; color: #999; }
+.space-post-text { font-size: 15px; color: #1a1a1a; margin-bottom: 8px; line-height: 1.6; }
+.space-post-images { display: grid; gap: 4px; margin-bottom: 8px; }
+.space-post-images img { width: 100%; border-radius: 8px; object-fit: cover; }
+.space-post-actions {
+    display: flex; gap: 20px; padding-top: 8px;
+    border-top: 1px solid #f0f0f0; font-size: 13px; color: #999;
+}
+.space-post-actions span { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.space-post-actions span.liked { color: #f55; }
+.space-comments { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; }
+.space-comment-item {
+    display: flex; gap: 8px; margin-bottom: 6px; font-size: 13px;
+}
+.space-comment-item .comment-name { color: #12b7f5; font-weight: 500; flex-shrink: 0; }
+.space-comment-item .comment-text { color: #333; }
+.space-comment-input-area {
+    display: flex; gap: 8px; margin-top: 8px;
+}
+.space-comment-input-area input {
+    flex: 1; padding: 8px 12px; border: 1px solid #e0e0e0;
+    border-radius: 16px; font-size: 13px; outline: none;
+}
+.space-post-btn {
+    position: fixed; bottom: 30px; right: 20px;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: #12b7f5; color: #fff; border: none;
+    font-size: 30px; cursor: pointer; z-index: 100;
+    box-shadow: 0 4px 16px rgba(18,183,245,0.4);
+}
+.new-post-overlay {
+    position: fixed; inset: 0; z-index: 5000;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: flex-end; justify-content: center;
+}
+.new-post-dialog {
+    background: #fff; border-radius: 16px 16px 0 0;
+    padding: 20px; width: 100%; max-width: 500px;
+    max-height: 85vh; overflow-y: auto;
+}
+.at-suggestions {
+    position: absolute; bottom: 100%; left: 0; right: 0;
+    background: #fff; border-radius: 12px 12px 0 0;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+    max-height: 180px; overflow-y: auto; display: none;
+}
+.at-suggestions .at-item {
+    padding: 10px 14px; cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+.at-suggestions .at-item:hover { background: #f0f0f0; }
 .online-dot {
     display: inline-block;
     width: 6px;
@@ -1182,7 +1262,8 @@
                 </div>
             </div>
             <div class="profile-space-section">
-                <div class="profile-space-entry" onclick="openSpace()">
+                <div class="profile-space-entry" onclick="openSpaceView()">
+                
                     <span>天堂空间</span>
                     <span style="flex:1;text-align:right;color:#b0b0b0;font-size:14px;margin-right:4px;">分享新鲜事 ›</span>
                     <span class="arrow">›</span>
@@ -1223,6 +1304,7 @@
 <div class="user-profile-add-btn" id="userProfileAddBtn" style="text-align:center;padding:20px;">
     <button onclick="addFriend()" style="padding:10px 40px;background:#12b7f5;color:#fff;border:none;border-radius:20px;font-size:15px;">加好友</button>
     <button onclick="sendMessageToUser()" style="padding:10px 40px;background:#07c160;color:#fff;border:none;border-radius:20px;font-size:15px;margin-top:8px;">发消息</button>
+    <button onclick="openSpaceView(viewingUser)" style="padding:10px 40px;background:#12b7f5;color:#fff;border:none;border-radius:20px;font-size:15px;margin-top:8px;">天堂空间</button>
 </div>
 </div>
 
@@ -1322,19 +1404,27 @@
     </div>
 </div>
 
-        <!-- 空间页 -->
-        <div class="page space-page" id="spacePage">
-            <div class="space-header">
-                <div class="space-back" onclick="goBackFromSpace()">←</div>
-                <div class="space-avatar" id="spaceAvatar">👤</div>
-                <div class="space-name" id="spaceName">天堂用户</div>
+<div class="page space-page" id="spacePage">
+    <div style="display:flex;align-items:center;gap:12px;padding:16px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div style="font-size:22px;cursor:pointer;" onclick="goBackFromSpace()">←</div>
+        <div id="spaceHeaderAvatar" style="width:60px;height:60px;border-radius:50%;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:30px;overflow:hidden;">👤</div>
+        <div>
+            <div class="space-nickname" id="spaceUserNickname" style="font-weight:700;font-size:18px;">天堂用户</div>
+            <div class="space-id" id="spaceUserId" style="font-size:13px;color:#999;">ID: </div>
+            <div style="display:flex;gap:16px;margin-top:4px;">
+                <span style="font-size:12px;color:#999;">说说 <b id="spacePostCount">0</b></span>
+                <span style="font-size:12px;color:#999;">访客 <b id="spaceVisitorCount">0</b></span>
             </div>
-            <div class="space-posts" id="spacePosts"></div>
-            <button class="space-post-btn" onclick="newPost()">+</button>
         </div>
-
-        <input type="file" accept="image/*" class="hidden-input" id="avatarInput" onchange="handleAvatarChange(event)">
     </div>
+    <div class="space-menu-bar">
+        <div class="space-menu-item active" onclick="switchSpaceTab('posts')">说说</div>
+        <div class="space-menu-item" onclick="switchSpaceTab('photos')">相册</div>
+        <div class="space-menu-item" onclick="switchSpaceTab('visitors')">访客</div>
+    </div>
+    <div id="spacePostsContainer"></div>
+    <button class="space-post-btn" onclick="createNewPost()">+</button>
+</div>
 
     <!-- 注册弹窗 -->
 <div class="register-overlay" id="registerOverlay">
@@ -1349,6 +1439,8 @@
         <div class="register-error" id="registerError"></div>
     </div>
 </div>
+
+
 
     <script>
         const firebaseConfig = {
@@ -1371,6 +1463,191 @@
         let currentSearchTab = 'user';
         let viewingUser = null;
         let pageHistory = [];
+        
+        
+        var spaceViewUser = null;
+var spaceCurrentTab = 'posts';
+var postImageFiles = [];
+
+var spaceViewUser = null;
+
+function openSpaceView(uid) {
+    spaceViewUser = uid || userId;
+    navigateTo('spacePage', 'slideInRight');
+    loadSpaceProfile(spaceViewUser);
+    loadSpacePosts(spaceViewUser);
+}
+function loadSpaceProfile(uid) {
+    db.ref('tth_users/' + uid).once('value', function(snap) {
+        var u = snap.val() || {};
+        document.getElementById('spaceUserNickname').textContent = u.nickname || uid;
+        document.getElementById('spaceUserId').textContent = 'ID: ' + uid;
+        var av = document.getElementById('spaceHeaderAvatar');
+        if (u.avatar) {
+            av.innerHTML = '<img src="' + u.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+        } else {
+            av.innerHTML = '👤';
+        }
+    });
+    db.ref('space_posts/' + uid).once('value', function(snap) {
+        var posts = snap.val() || {};
+        document.getElementById('spacePostCount').textContent = Object.keys(posts).length;
+    });
+    db.ref('space_visitors/' + uid + '/' + userId).set(Date.now());
+    db.ref('space_visitors/' + uid).once('value', function(snap) {
+        document.getElementById('spaceVisitorCount').textContent = snap.numChildren();
+    });
+}
+function switchSpaceTab(tab) {
+    spaceCurrentTab = tab;
+    document.querySelectorAll('.space-menu-item').forEach(function(el) { el.classList.remove('active'); });
+    event.target.classList.add('active');
+    if (tab === 'posts') loadSpacePosts(spaceViewUser);
+    else document.getElementById('spacePostsContainer').innerHTML = '<div class="space-empty"><div class="empty-icon">📷</div>暂无内容</div>';
+}
+function submitSpaceComment(uid, key) {
+    var input = document.getElementById('commentInput_' + key);
+    var text = input.value.trim();
+    if (!text) return;
+    db.ref('space_comments/' + uid + '/' + key + '/' + Date.now()).set({ uid: userId, nickname: userData.nickname || userId, text: text, time: Date.now() });
+}
+function viewFullImage(src) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = '<img src="' + src + '" style="max-width:95%;max-height:95%;" onclick="this.parentElement.remove()">';
+    overlay.addEventListener('click', function() { overlay.remove(); });
+    document.body.appendChild(overlay);
+}
+db.ref('space_notifications/' + userId).on('child_added', function(snap) {
+    var n = snap.val();
+    showSpaceIsland(n.fromName + ' ' + n.text);
+    snap.ref.remove();
+});
+function showSpaceIsland(msg) {
+    var island = document.createElement('div');
+    island.style.cssText = 'position:fixed;top:40px;left:50%;transform:translateX(-50%);z-index:10001;background:#000;color:#fff;padding:10px 20px;border-radius:24px;font-size:14px;';
+    island.textContent = msg;
+    document.body.appendChild(island);
+    setTimeout(function() { island.remove(); }, 4000);
+}
+function loadSpacePosts(uid) {
+    db.ref('space_posts/' + uid).once('value', function(snap) {
+        var posts = snap.val() || {};
+        var keys = Object.keys(posts).sort(function(a,b){return posts[b].time - posts[a].time;});
+        var html = '';
+        if (keys.length === 0) html = '<div class="space-empty"><div class="empty-icon">📝</div>点击右下角+号，开始连载你的生活</div>';
+        keys.forEach(function(key) {
+            var p = posts[key];
+            var imgsHtml = '';
+            if (p.images && p.images.length > 0) {
+                var cols = p.images.length === 1 ? 1 : p.images.length === 2 ? 2 : 3;
+                imgsHtml = '<div class="space-post-images" style="grid-template-columns:repeat(' + cols + ',1fr);">' + p.images.map(function(img){ return '<img src="' + img + '" onclick="viewFullImage(\'' + img + '\')">'; }).join('') + '</div>';
+            }
+            var liked = p.likes && p.likes[userId];
+            html += '<div class="space-post"><div class="space-post-header"><div class="space-post-avatar">' + (p.avatar ? '<img src="' + p.avatar + '" style="width:100%;height:100%;object-fit:cover;">' : '👤') + '</div><div><div class="space-post-name">' + (p.nickname || p.uid) + '</div><div class="space-post-time">' + new Date(p.time).toLocaleString() + '</div></div></div>' +
+                '<div class="space-post-text">' + (p.text||'').replace(/@(\d+)/g, '<span style="color:#12b7f5;cursor:pointer;" onclick="viewUser(\'$1\')">@$1</span>') + '</div>' + imgsHtml +
+                '<div class="space-post-actions"><span ' + (liked?'class="liked"':'') + ' onclick="likeSpacePost(\'' + uid + '\',\'' + key + '\')">' + (liked?'❤️':'🤍') + ' <span>' + (p.likes?Object.keys(p.likes).length:0) + '</span></span><span onclick="showSpaceComments(\'' + uid + '\',\'' + key + '\')">💬 评论</span></div>' +
+                '<div class="space-comments" id="comments_' + key + '" style="display:none;"></div></div>';
+        });
+        document.getElementById('spacePostsContainer').innerHTML = html;
+    });
+}
+function createNewPost() {
+    var overlay = document.createElement('div');
+    overlay.className = 'new-post-overlay';
+    overlay.id = 'newPostOverlay';
+    overlay.innerHTML = '<div class="new-post-dialog">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+        '<button onclick="document.getElementById(\'newPostOverlay\').remove()" style="background:none;border:none;font-size:16px;color:#999;">取消</button>' +
+        '<span style="font-weight:600;">写说说</span>' +
+        '<button onclick="publishPost()" style="background:#12b7f5;color:#fff;border:none;padding:8px 16px;border-radius:16px;">发表</button></div>' +
+        '<textarea id="newPostText" placeholder="分享新鲜事..." style="width:100%;height:120px;border:none;font-size:16px;outline:none;resize:none;font-family:inherit;"></textarea>' +
+        '<div style="position:relative;"><input type="text" id="atFriendInput" placeholder="@好友" style="width:100%;padding:8px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;" oninput="showAtSuggestions(this.value)"><div class="at-suggestions" id="atSuggestionsList"></div></div>' +
+        '<input type="file" id="postImageInput" accept="image/*" multiple style="display:none;" onchange="previewPostImages()">' +
+        '<button onclick="document.getElementById(\'postImageInput\').click()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:8px;margin-top:8px;">📷 照片/视频</button>' +
+        '<div id="postImagePreview" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;"></div>' +
+        '<div style="margin-top:12px;"><select id="postPrivacy" onchange="handlePrivacyChange()" style="padding:6px;border-radius:8px;">' +
+        '<option value="all">所有人可见</option><option value="friends">天堂好友</option><option value="private">私密</option><option value="some">部分好友</option><option value="except">不给谁看</option></select></div>' +
+        '<div id="friendSelectArea" style="display:none;margin-top:8px;max-height:150px;overflow-y:auto;"></div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+function previewPostImages() {
+    var files = document.getElementById('postImageInput').files;
+    var preview = document.getElementById('postImagePreview');
+    postImageFiles = Array.from(files);
+    preview.innerHTML = postImageFiles.map(function(f) { return '<img src="' + URL.createObjectURL(f) + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">'; }).join('');
+}
+function handlePrivacyChange() {
+    var val = document.getElementById('postPrivacy').value;
+    var area = document.getElementById('friendSelectArea');
+    if (val === 'some' || val === 'except') {
+        area.style.display = 'block';
+        var html = '';
+        Object.keys(friends).forEach(function(fid) { html += '<label style="display:block;padding:4px;"><input type="checkbox" value="' + fid + '" class="privacyFriend"> ' + (friends[fid].nickname || fid) + '</label>'; });
+        area.innerHTML = html || '暂无好友';
+    } else { area.style.display = 'none'; }
+}
+function publishPost() {
+    var text = document.getElementById('newPostText').value.trim();
+    if (!text && postImageFiles.length === 0) { alert('请输入内容'); return; }
+    var savePostData = function(images) {
+        var privacy = document.getElementById('postPrivacy').value;
+        var postData = { uid: userId, nickname: userData.nickname || userId, avatar: userData.avatar || '', text: text, images: images, time: Date.now(), privacy: privacy };
+        if (privacy === 'some' || privacy === 'except') {
+            var selected = [];
+            document.querySelectorAll('.privacyFriend:checked').forEach(function(cb) { selected.push(cb.value); });
+            postData.privacyList = selected;
+        }
+        db.ref('space_posts/' + userId + '/post_' + Date.now()).set(postData);
+        document.getElementById('newPostOverlay').remove();
+        loadSpacePosts(spaceViewUser);
+        postImageFiles = [];
+    };
+    if (postImageFiles.length === 0) { savePostData([]); return; }
+    var images = [], loaded = 0;
+    postImageFiles.forEach(function(file) {
+        var reader = new FileReader();
+        reader.onload = function(e) { images.push(e.target.result); loaded++; if (loaded === postImageFiles.length) savePostData(images); };
+        reader.readAsDataURL(file);
+    });
+}
+function showAtSuggestions(val) {
+    var list = document.getElementById('atSuggestionsList');
+    var atIndex = val.lastIndexOf('@');
+    if (atIndex === -1) { list.style.display = 'none'; return; }
+    var query = val.substring(atIndex + 1).toLowerCase();
+    var matches = Object.keys(friends).filter(function(fid) { return fid.toLowerCase().indexOf(query) !== -1; });
+    list.innerHTML = matches.map(function(fid) { return '<div class="at-item" onclick="insertAtFriend(\'' + fid + '\')">@' + fid + '</div>'; }).join('');
+    list.style.display = matches.length > 0 ? 'block' : 'none';
+}
+function insertAtFriend(fid) {
+    var area = document.getElementById('newPostText');
+    area.value += '@' + fid + ' ';
+    document.getElementById('atSuggestionsList').style.display = 'none';
+    document.getElementById('atFriendInput').value = '';
+}
+function likeSpacePost(uid, key) {
+    db.ref('space_posts/' + uid + '/' + key + '/likes/' + userId).once('value', function(snap) {
+        if (snap.exists()) { db.ref('space_posts/' + uid + '/' + key + '/likes/' + userId).remove(); }
+        else { db.ref('space_posts/' + uid + '/' + key + '/likes/' + userId).set(true); }
+        loadSpacePosts(spaceViewUser);
+    });
+}
+function showSpaceComments(uid, key) {
+    var el = document.getElementById('comments_' + key);
+    if (el.style.display === 'block') { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    db.ref('space_comments/' + uid + '/' + key).on('value', function(snap) {
+        var comments = snap.val() || {};
+        var html = Object.keys(comments).sort(function(a,b){return comments[a].time - comments[b].time;}).map(function(ck) {
+            var c = comments[ck];
+            return '<div class="space-comment-item"><span class="comment-name" onclick="viewUser(\'' + c.uid + '\')">' + (c.nickname || c.uid) + '：</span><span class="comment-text">' + c.text + '</span></div>';
+        }).join('');
+        html += '<div class="space-comment-input-area"><input id="commentInput_' + key + '" placeholder="写评论..."><button onclick="submitSpaceComment(\'' + uid + '\',\'' + key + '\')" style="background:#12b7f5;color:#fff;border:none;padding:6px 14px;border-radius:16px;font-size:12px;">发送</button></div>';
+        el.innerHTML = html;
+    });
+}
 
 function init() {
     if (userId) {
@@ -1458,7 +1735,7 @@ function saveUserData() {
             var name = userData.nickname || '天堂用户';
             document.getElementById('navNickname').textContent = name;
             document.getElementById('profileName').textContent = name;
-            document.getElementById('spaceName').textContent = name;
+            
             if (userData.isVIP) {
     document.getElementById('profileThId').innerHTML = '天堂号：<span style="display:inline-flex;align-items:center;gap:2px;background:linear-gradient(135deg,#1a1a0e,#0d0d05);padding:3px 8px;border-radius:14px;border:1px solid rgba(212,168,67,0.4);position:relative;overflow:hidden;vertical-align:middle;"><span style="background:#d4a843;color:#0d0d05;padding:1px 5px;border-radius:10px;font-weight:700;font-size:9px;flex-shrink:0;line-height:1.2;">靓</span><span style="color:rgba(212,168,67,0.4);font-size:10px;margin:0 1px;">/</span><span style="color:#d4a843;font-weight:600;font-size:11px;letter-spacing:0.3px;">' + (userId || '未设置') + '</span><span style="position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,215,0,0.25),transparent);animation:靓号Scan 3s ease-in-out infinite;"></span></span>';
 } else {
@@ -1467,7 +1744,7 @@ function saveUserData() {
             if (avatarUrl) {
                 document.getElementById('navAvatar').innerHTML = '<img src="' + avatarUrl + '">';
                 document.getElementById('profileAvatar').innerHTML = '<img src="' + avatarUrl + '">';
-                document.getElementById('spaceAvatar').innerHTML = '<img src="' + avatarUrl + '">';
+                
             }
             var sigEl = document.getElementById('profileSignature');
             if (userData.signature) {
@@ -1625,11 +1902,9 @@ function showAddMenu() {
 
         function goBackFromProfile() { goBack(); }
 
-        function openSpace() { navigateTo('spacePage', 'slideInRight');
-            document.getElementById('spacePosts').innerHTML = ''; }
+        
 
-        function goBackFromSpace() { goBack(); }
-
+        function goBackFromSpace() { spaceViewUser = null; goBack(); }
         function changeAvatar() { document.getElementById('avatarInput').click(); }
 
         function handleAvatarChange(event) { var file = event.target.files[0]; if (!file) return;
@@ -2016,12 +2291,7 @@ function goBackFromUserProfile() {
             });
         }
 
-        function openUserSpace() { alert('空间功能开发中'); }
-
-        function newPost() { var t = prompt('发一条动态：'); if (t && t.trim()) { var d = document.createElement('div');
-                d.style.cssText = 'padding:12px;background:#fff;margin-bottom:8px;border-radius:8px;font-size:14px;';
-                d.textContent = t;
-                document.getElementById('spacePosts').appendChild(d); } }
+    
 
         init();
         // ========== 群聊系统 ==========
@@ -2364,6 +2634,7 @@ function showBanAlert(banData) {
         '<div style="font-weight:700;font-size:1.2rem;color:#f55;margin-bottom:8px;">账号已被封禁</div>' +
         '<div style="color:#ccc;font-size:0.85rem;margin-bottom:20px;">封禁原因：' + (banData.reason || '违规操作') + ' | 封禁' + (banData.days||'?') + '天 | 剩余' + days + '天</div>' +
         '<button onclick="openAppealPage()" style="width:100%;padding:12px;background:#FFB800;border:none;border-radius:40px;color:#000;font-weight:700;margin-bottom:8px;">📝 申诉</button>' +
+        
         '</div>';
     document.body.appendChild(overlay);
 }
@@ -2441,6 +2712,18 @@ window.handleAppeal = function(key, status) {
         alert('已拒绝');
     }
 };;
+db.ref('space_notifications/' + userId).on('child_added', function(snap) {
+    var n = snap.val();
+    showSpaceIsland(n.fromName + ' 在发布天堂空间时提到了你');
+    snap.ref.remove();
+});
+function showSpaceIsland(msg) {
+    var island = document.createElement('div');
+    island.style.cssText = 'position:fixed;top:40px;left:50%;transform:translateX(-50%);z-index:10001;background:#000;color:#fff;padding:10px 20px;border-radius:24px;font-size:14px;';
+    island.textContent = msg;
+    document.body.appendChild(island);
+    setTimeout(function() { island.remove(); }, 4000);
+}
     </script>
 </body>
 </html> 
