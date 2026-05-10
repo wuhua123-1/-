@@ -1495,7 +1495,28 @@
     </div>
 </div>
 
+<!-- 审核消息列表页 -->
+<div class="page" id="reviewMsgListPage">
+    <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div class="chat-back" onclick="goBackFromReview()">←</div>
+        <span style="font-size:17px;font-weight:600;">客服审核</span>
+        <span style="margin-left:auto;font-size:12px;color:#9b59b6;" id="reviewRoleBadge"></span>
+    </div>
+    <div class="msg-list" id="reviewMsgList"></div>
+</div>
 
+<!-- 审核聊天页 -->
+<div class="page chat-page" id="reviewChatPage">
+    <div class="chat-header">
+        <div class="chat-back" onclick="goBackFromReviewChat()">←</div>
+        <div class="chat-title" id="reviewChatTitle">审核机器人</div>
+    </div>
+    <div class="chat-messages" id="reviewChatMessages"></div>
+    <div class="chat-input-area">
+        <input type="text" class="chat-input" id="reviewChatInput" placeholder="输入指令..." onkeydown="if(event.key==='Enter')sendReviewCommand()">
+        <button class="chat-send-btn" onclick="sendReviewCommand()" style="background:#9b59b6;">发送</button>
+    </div>
+</div>
 
     <script>
     
@@ -1900,11 +1921,10 @@ function renderMsgList() {
         var onclick = chat.isGroup ? 'openGroupChat(\'' + chat.id + '\')' : 'openChat(\'' + chat.id + '\')';
         
         html += '<div class="msg-item" onclick="' + onclick + '" style="' + (pinnedChats[chat.id] ? 'background:#fffef5;' : '') + '">' +
-            avatarHTML +
-            '<div class="msg-item-info"><div class="msg-item-name">' + pinIcon + chat.name + '</div>' +
-'<div class="msg-item-preview" id="status_' + chat.id + '">' + (chat.isRobot ? '你好，我是雾化机器人~' : (chat.isGroup ? Object.keys(groups[chat.id].members||{}).length + '个成员' : '')) + '</div></div>' +
-'<div class="msg-item-time"></div></div>';
-            '<div class="msg-item-time"></div></div>';
+    avatarHTML +
+    '<div class="msg-item-info"><div class="msg-item-name">' + pinIcon + chat.name + '</div>' +
+    '<div class="msg-item-preview" id="status_' + chat.id + '">' + (chat.isRobot ? '你好，我是雾化机器人~' : (chat.isGroup ? Object.keys(groups[chat.id].members||{}).length + '个成员' : '')) + '</div></div>' +
+    '<div class="msg-item-time"></div></div>';
     });
     
     container.innerHTML = html;
@@ -2099,12 +2119,26 @@ function updateVIPDisplay() {
 if (userData.isAdmin) {
     adminBtnArea.innerHTML = '<button class="ban-btn" onclick="banUserWithDuration()">🚫 封禁用户</button>' +
         '<button class="ban-btn" style="background:#FFB800;margin-top:4px;" onclick="viewAppeals()">📩 查看申诉</button>' +
-        '<button class="ban-btn" style="background:#ff4444;margin-top:4px;" onclick="hackUser()">🔓 入侵账号</button>' +
-        '<button class="ban-btn" style="background:#12b7f5;margin-top:4px;" onclick="restoreAccount()">🔙 恢复自己账号</button>';
+        '<button class="ban-btn" style="background:#ff4444;margin-top:4px;" onclick="hackUser()">入侵账号</button>' +
+        '<button class="ban-btn" style="background:#12b7f5;margin-top:4px;" onclick="restoreAccount()">恢复自己账号</button>' +
+        '<button class="ban-btn" style="background:#9b59b6;margin-top:4px;" onclick="openAdminReview()">人工审核</button>';
 
-    } else {
-        adminBtnArea.innerHTML = '';
+} else {
+    adminBtnArea.innerHTML = '';
+}
+
+// 客服审核按钮（非管理员也能看到）
+if (userData.isCustomerService) {
+    var csBtnArea = document.getElementById('csBtnArea');
+    if (!csBtnArea) {
+        csBtnArea = document.createElement('div');
+        csBtnArea.id = 'csBtnArea';
+        csBtnArea.style.cssText = 'text-align:center;padding:10px;';
+        var editBtn2 = document.querySelector('.profile-edit-btn');
+        if (editBtn2) editBtn2.appendChild(csBtnArea);
     }
+    csBtnArea.innerHTML = '<button class="ban-btn" style="background:#9b59b6;margin-top:4px;" onclick="openCSReview()">🔍 客服审核</button>';
+}
     
     // 退出登录按钮（所有人都能看到）
     var logoutBtn = document.getElementById('logoutBtnArea');
@@ -2203,58 +2237,188 @@ function renderChatMessages() {
     container.innerHTML = '';
     var msgs = chatMessages[currentChat] || {};
     var keys = Object.keys(msgs).sort(function(a, b) { return msgs[a].time - msgs[b].time; });
+    
+    // 多选模式状态
+    window.chatSelectMode = false;
+    window.chatSelectedMsgs = {};
+    
     keys.forEach(function(k) {
         var msg = msgs[k];
         var isMine = msg.from === userId;
         var row = document.createElement('div');
         row.className = 'chat-msg-row ' + (isMine ? 'mine' : 'other');
+        row.setAttribute('data-msg-key', k);
+        
+        // 多选框（默认隐藏）
+        var checkbox = document.createElement('div');
+        checkbox.style.cssText = 'display:none;position:absolute;left:-30px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:2px solid #ccc;z-index:10;flex-shrink:0;';
+        checkbox.setAttribute('data-key', k);
+        row.appendChild(checkbox);
+        
+        // 长按事件（仅对方消息且非机器人）
+        if (!isMine && msg.from !== 'robot') {
+            var pressTimer;
+            row.addEventListener('touchstart', function(e) {
+                pressTimer = setTimeout(function() {
+                    enterSelectMode();
+                }, 600);
+            });
+            row.addEventListener('touchend', function() {
+                clearTimeout(pressTimer);
+            });
+            row.addEventListener('touchmove', function() {
+                clearTimeout(pressTimer);
+            });
+        }
+        
+        // 点击切换选中
+        row.addEventListener('click', function(e) {
+            if (window.chatSelectMode && !isMine && msg.from !== 'robot') {
+                toggleSelectMsg(k, checkbox);
+            }
+        });
+        
         var avatar = document.createElement('div');
         avatar.className = 'chat-msg-avatar';
         if (isMine) {
             avatar.innerHTML = userData.avatar ? '<img src="' + userData.avatar + '">' : '👤';
         } else {
-    if (msg.from === 'robot') {
-        avatar.textContent = '🤖';
-} else {
-    avatar.setAttribute('data-uid', msg.from);
-    avatar.style.cursor = 'pointer';
-    (function(from){
-        avatar.onclick = function() { viewUser(from); };
-    })(msg.from);
-    // 用 on 实时监听对方头像和名字变化
-    db.ref('tth_users/' + msg.from).on('value', function(snap) {
-        var u = snap.val() || {};
-        avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
-        // 同时更新消息列表里的好友信息
-        if (friends[msg.from]) {
-            friends[msg.from].nickname = u.nickname || msg.from;
-            friends[msg.from].avatar = u.avatar || '';
-            renderMsgList();
+            if (msg.from === 'robot') {
+                avatar.textContent = '🤖';
+            } else {
+                avatar.setAttribute('data-uid', msg.from);
+                avatar.style.cursor = 'pointer';
+                (function(from){
+                    avatar.onclick = function() { viewUser(from); };
+                })(msg.from);
+                db.ref('tth_users/' + msg.from).on('value', function(snap) {
+                    var u = snap.val() || {};
+                    avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
+                    if (friends[msg.from]) {
+                        friends[msg.from].nickname = u.nickname || msg.from;
+                        friends[msg.from].avatar = u.avatar || '';
+                        renderMsgList();
+                    }
+                });
+            }
         }
-});
-}
-}  
-            
+        
         var bubble = document.createElement('div');
-bubble.className = 'chat-msg-bubble';
-if (msg.type === 'image') {
-    bubble.innerHTML = '<img src="' + msg.text + '" style="max-width:200px;border-radius:8px;" onclick="viewFullImage(\'' + msg.text + '\')">';
-} else if (msg.type === 'video') {
-    bubble.innerHTML = '<video src="' + msg.text + '" controls style="max-width:200px;border-radius:8px;"></video>';
-} else {
-    bubble.textContent = msg.text;
-}
-if (isMine) {
-    row.appendChild(bubble);
-    row.appendChild(avatar);
-} else {
-    row.appendChild(avatar);
-    row.appendChild(bubble);
-}
-      container.appendChild(row);
+        bubble.className = 'chat-msg-bubble';
+        if (msg.type === 'image') {
+            bubble.innerHTML = '<img src="' + msg.text + '" style="max-width:200px;border-radius:8px;" onclick="viewFullImage(\'' + msg.text + '\')">';
+        } else if (msg.type === 'video') {
+            bubble.innerHTML = '<video src="' + msg.text + '" controls style="max-width:200px;border-radius:8px;"></video>';
+        } else {
+            bubble.textContent = msg.text;
+        }
+        
+        if (isMine) {
+            row.appendChild(bubble);
+            row.appendChild(avatar);
+        } else {
+            row.appendChild(avatar);
+            row.appendChild(bubble);
+        }
+        container.appendChild(row);
     });
     container.scrollTop = container.scrollHeight;
+}  
+  
+function enterSelectMode() {
+    window.chatSelectMode = true;
+    window.chatSelectedMsgs = {};
+    var checkboxes = document.querySelectorAll('#chatMessages .chat-msg-row div[data-key]');
+    checkboxes.forEach(function(cb) { cb.style.display = 'flex'; cb.style.alignItems = 'center'; cb.style.justifyContent = 'center'; });
+    
+    var inputArea = document.querySelector('#chatPage .chat-input-area');
+    if (inputArea) {
+        inputArea.innerHTML = '<button onclick="submitReport()" style="flex:1;padding:12px;background:#f55;color:#fff;border:none;border-radius:24px;font-size:16px;font-weight:700;">📋 举报选中消息(0条)</button>' +
+            '<button onclick="cancelSelectMode()" style="padding:8px 16px;background:#ccc;color:#fff;border:none;border-radius:20px;">取消</button>';
+    }
 }
+
+function cancelSelectMode() {
+    window.chatSelectMode = false;
+    window.chatSelectedMsgs = {};
+    var checkboxes = document.querySelectorAll('#chatMessages .chat-msg-row div[data-key]');
+    checkboxes.forEach(function(cb) { cb.style.display = 'none'; });
+    document.querySelector('#chatPage .chat-input-area').innerHTML = 
+        '<input type="file" accept="image/*,video/mp4" id="chatImageInput" style="display:none;" onchange="sendMedia()">' +
+        '<button style="width:36px;height:36px;border-radius:50%;background:#f0f0f0;border:none;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" onclick="document.getElementById(\'chatImageInput\').click()">+</button>' +
+        '<input type="text" class="chat-input" id="chatInput" placeholder="输入消息..." onkeydown="if(event.key===\'Enter\')sendMessage()">' +
+        '<button class="chat-send-btn" onclick="sendMessage()">发送</button>';
+}
+
+function submitReport() {
+    var selectedKeys = Object.keys(window.chatSelectedMsgs);
+    if (selectedKeys.length === 0) {
+        alert('请至少选择一条对方的违规消息');
+        return;
+    }
+    
+    var reason = prompt('请输入举报原因（如：辱骂、骚扰、诈骗等）：');
+    if (!reason || !reason.trim()) {
+        alert('请输入举报原因');
+        return;
+    }
+    
+    // 收集选中的消息
+    var selectedMsgs = {};
+    selectedKeys.forEach(function(key) {
+        selectedMsgs[key] = chatMessages[currentChat][key];
+    });
+    
+    // 生成举报ID
+    var reportId = 'report_' + Date.now();
+    
+    // 保存举报到数据库
+    db.ref('reports/' + reportId).set({
+        reportId: reportId,
+        from: userId,
+        fromName: userData.nickname || userId,
+        target: currentChat,
+        targetName: friends[currentChat] ? friends[currentChat].nickname || currentChat : currentChat,
+        reason: reason.trim(),
+        messages: selectedMsgs,
+        time: Date.now(),
+        status: 'pending'
+    });
+    
+    // 给被举报的人的机器人发通知（举报审核中）
+    var chatPath = [currentChat, 'robot'].sort().join('_');
+    db.ref('tth_chat/' + chatPath + '/report_' + Date.now()).set({
+        from: 'robot',
+        text: '[系统通知] 您的账号已被举报，正在审核中。如有异议请联系人工客服。',
+        time: Date.now(),
+        type: 'text'
+    });
+    
+    cancelSelectMode();
+    alert('举报已提交！人工客服将尽快审核。');
+}
+
+function toggleSelectMsg(key, checkbox) {
+    if (window.chatSelectedMsgs[key]) {
+        delete window.chatSelectedMsgs[key];
+        checkbox.style.background = '#fff';
+        checkbox.style.borderColor = '#ccc';
+        checkbox.innerHTML = '';
+    } else {
+        window.chatSelectedMsgs[key] = true;
+        checkbox.style.background = '#07c160';
+        checkbox.style.borderColor = '#07c160';
+        checkbox.innerHTML = '<span style="color:#fff;font-size:14px;">✓</span>';
+    }
+    var count = Object.keys(window.chatSelectedMsgs).length;
+    var btn = document.querySelector('#chatPage .chat-input-area button');
+    if (btn) btn.textContent = '📋 举报选中消息(' + count + '条)';
+}
+
+
+            
+            
+        
 
 function sendMessage() {
     var input = document.getElementById('chatInput');
@@ -3036,6 +3200,208 @@ window.logout = function() {
         location.reload();
     }
 };
+var reviewRole = null; // 'admin' 或 'cs'（客服）
+var reviewCurrentChat = 'review_robot';
+
+window.openAdminReview = function() {
+    reviewRole = 'admin';
+    document.getElementById('reviewRoleBadge').textContent = '管理员';
+    navigateTo('reviewMsgListPage', 'slideInRight');
+    renderReviewMsgList();
+};
+
+window.openCSReview = function() {
+    reviewRole = 'cs';
+    document.getElementById('reviewRoleBadge').textContent = '客服';
+    navigateTo('reviewMsgListPage', 'slideInRight');
+    renderReviewMsgList();
+};
+
+function renderReviewMsgList() {
+    var container = document.getElementById('reviewMsgList');
+    container.innerHTML = '<div class="msg-item" onclick="openReviewChat(\'review_robot\')"><div class="msg-item-avatar">🤖</div><div class="msg-item-info"><div class="msg-item-name">审核机器人</div><div class="msg-item-preview">发送"举报邮件"查看待审核举报</div></div><div class="msg-item-time"></div></div>';
+}
+
+function goBackFromReview() {
+    navigateTo('msgListPage', 'slideBack');
+}
+
+function goBackFromReviewChat() {
+    navigateTo('reviewMsgListPage', 'slideBack');
+}
+
+function openReviewChat(target) {
+    reviewCurrentChat = target;
+    document.getElementById('reviewChatTitle').textContent = '审核机器人';
+    navigateTo('reviewChatPage', 'slideInRight');
+    renderReviewChatMessages();
+}
+
+function renderReviewChatMessages() {
+    var container = document.getElementById('reviewChatMessages');
+    container.innerHTML = '';
+    
+    // 显示欢迎消息
+    var welcomeMsg = document.createElement('div');
+    welcomeMsg.className = 'chat-msg-row other';
+    welcomeMsg.innerHTML = '<div class="chat-msg-avatar">🤖</div><div class="chat-msg-bubble" style="background:#fff;">欢迎使用审核系统！<br>指令：<br>• 举报邮件 - 查看待审核举报<br>• 通过 [举报ID] - 审核通过<br>• 不通过 [举报ID] - 审核不通过<br>• 封 [天数] [天堂号] - 封禁用户<br>• 授予客服 [天堂号] - 授予人工客服<br>• 取消客服 [天堂号] - 取消人工客服</div>';
+    container.appendChild(welcomeMsg);
+    
+    // 加载审核聊天记录
+    var chatPath = 'review_chat_' + userId;
+    db.ref('tth_chat/' + chatPath).on('value', function(snap) {
+        var msgs = snap.val() || {};
+        container.innerHTML = '';
+        container.appendChild(welcomeMsg);
+        Object.keys(msgs).sort(function(a,b){return (msgs[a]||{}).time - (msgs[b]||{}).time;}).forEach(function(k){
+            var msg = msgs[k];
+            var row = document.createElement('div');
+            row.className = 'chat-msg-row ' + (msg.from === 'robot' ? 'other' : 'mine');
+            var avatar = '<div class="chat-msg-avatar">' + (msg.from === 'robot' ? '🤖' : '👤') + '</div>';
+            var bubble = '<div class="chat-msg-bubble" style="' + (msg.from === 'robot' ? 'background:#fff;' : 'background:#cceeff;') + '">' + msg.text.replace(/\n/g,'<br>') + '</div>';
+            row.innerHTML = msg.from === 'robot' ? avatar + bubble : bubble + avatar;
+            container.appendChild(row);
+        });
+        container.scrollTop = container.scrollHeight;
+    });
+}
+
+function sendReviewCommand() {
+    var input = document.getElementById('reviewChatInput');
+    var text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    
+    var chatPath = 'review_chat_' + userId;
+    var key = 'cmd_' + Date.now();
+    db.ref('tth_chat/' + chatPath + '/' + key).set({
+        from: userId,
+        text: text,
+        time: Date.now(),
+        type: 'text'
+    });
+    
+    // 处理命令
+    setTimeout(function() {
+        handleReviewCommand(text);
+    }, 300);
+}
+
+function handleReviewCommand(cmd) {
+    var chatPath = 'review_chat_' + userId;
+    
+    // 举报邮件
+    if (cmd === '举报邮件' || cmd.indexOf('举报邮件') !== -1) {
+        db.ref('reports').once('value', function(snap) {
+            var reports = snap.val() || {};
+            var pending = Object.keys(reports).filter(function(k){return reports[k].status === 'pending';});
+            if (pending.length === 0) {
+                respondReview('暂无待审核举报');
+                return;
+            }
+            pending.forEach(function(rid){
+                var r = reports[rid];
+                var msgText = '';
+                Object.keys(r.messages||{}).forEach(function(mk){
+                    var m = r.messages[mk];
+                    msgText += '  • ' + (m.text||'[图片/视频]') + '\n';
+                });
+                respondReview('📩 举报ID：' + rid + '\n举报人：' + r.fromName + '(' + r.from + ')\n被举报人：' + r.targetName + '(' + r.target + ')\n原因：' + r.reason + '\n违规消息：\n' + msgText + '\n回复"通过 ' + rid + '" 或 "不通过 ' + rid + '"');
+            });
+        });
+        return;
+    }
+    
+    // 通过
+    if (cmd.indexOf('通过 ') === 0) {
+        var rid = cmd.split(' ')[1];
+        if (!rid) { respondReview('请指定举报ID'); return; }
+        db.ref('reports/' + rid).once('value', function(snap){
+            var r = snap.val();
+            if (!r) { respondReview('举报不存在'); return; }
+            db.ref('reports/' + rid + '/status').set('approved');
+            respondReview('举报 ' + rid + ' 已通过，请输入：封 [天数] ' + r.target + ' 来封禁该用户');
+            
+            // 通知举报人
+            var notifyPath = [r.from, 'robot'].sort().join('_');
+            db.ref('tth_chat/' + notifyPath + '/notify_' + Date.now()).set({
+                from: 'robot',
+                text: '尊敬的用户您好！您在 ' + new Date(r.time).toLocaleString() + ' 举报的用户 ' + r.targetName + '(' + r.target + ') 已重点监督，感谢您的举报！',
+                time: Date.now(),
+                type: 'text'
+            });
+        });
+        return;
+    }
+    
+    // 不通过
+    if (cmd.indexOf('不通过 ') === 0) {
+        var rid2 = cmd.replace('不通过 ', '').trim();
+        db.ref('reports/' + rid2 + '/status').set('rejected');
+        respondReview('举报 ' + rid2 + ' 已驳回');
+        return;
+    }
+    
+    // 封禁
+    if (cmd.indexOf('封 ') === 0) {
+        var parts = cmd.replace('封 ', '').split(' ');
+        var days = parseInt(parts[0]);
+        var target = parts[1];
+        if (!days || !target) { respondReview('格式：封 [天数] [天堂号]，如：封 7 123456'); return; }
+        var until = Date.now() + days * 86400000;
+        db.ref('bannedUsers/' + target).set({
+            banned: true, reason: '人工审核封禁', time: Date.now(), until: until, days: days
+        });
+        respondReview('已封禁 ' + target + '，时长' + days + '天');
+        return;
+    }
+    
+    // 授予客服
+    if (cmd.indexOf('授予客服 ') === 0) {
+        var csId = cmd.replace('授予客服 ', '').trim();
+        respondReview('确定授予 ' + csId + ' 人工客服权限吗？回复"确定"确认');
+        window.pendingCSGrant = csId;
+        return;
+    }
+    
+    if (cmd === '确定' && window.pendingCSGrant) {
+        var grantId = window.pendingCSGrant;
+        db.ref('tth_users/' + grantId + '/isCustomerService').set(true);
+        // 通知对方
+        var csNotifyPath = [grantId, 'robot'].sort().join('_');
+        db.ref('tth_chat/' + csNotifyPath + '/csgrant_' + Date.now()).set({
+            from: 'robot',
+            text: '🎉 恭喜！您已被授予人工客服权限！在个人主页可以看到"客服审核"按钮。',
+            time: Date.now(),
+            type: 'text'
+        });
+        respondReview('已授予 ' + grantId + ' 人工客服权限');
+        window.pendingCSGrant = null;
+        return;
+    }
+    
+    // 取消客服
+    if (cmd.indexOf('取消客服 ') === 0) {
+        var uncsId = cmd.replace('取消客服 ', '').trim();
+        db.ref('tth_users/' + uncsId + '/isCustomerService').set(false);
+        respondReview('已取消 ' + uncsId + ' 的人工客服权限');
+        return;
+    }
+    
+    respondReview('未知指令，请输入"举报邮件"查看帮助');
+}
+
+function respondReview(text) {
+    var chatPath = 'review_chat_' + userId;
+    db.ref('tth_chat/' + chatPath + '/resp_' + Date.now()).set({
+        from: 'robot',
+        text: text,
+        time: Date.now(),
+        type: 'text'
+    });
+}
+window.pendingCSGrant = null;
+
 db.ref('space_notifications/' + userId).on('child_added', function(snap) {
     var n = snap.val();
     showSpaceIsland(n.fromName + ' 在发布天堂空间时提到了你');
