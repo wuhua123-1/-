@@ -2550,42 +2550,39 @@ function renderGroupChatMessages() {
         var isOwner = msg.from === g.owner;
         
         var row = document.createElement('div');
-        row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;' + (isMine ? 'flex-direction:row-reverse;' : '');
+        row.className = 'chat-msg-row ' + (isMine ? 'mine' : 'other');
         
         var avatar = document.createElement('div');
         avatar.className = 'chat-msg-avatar';
-        (function(from) {
-            avatar.onclick = function() { viewUser(from); };
-        })(msg.from);
         avatar.style.cursor = 'pointer';
+        avatar.setAttribute('data-uid', msg.from);
+        avatar.onclick = function() { viewUser(msg.from); };
+        
+        // 实时监听群成员头像和名字
         db.ref('tth_users/' + msg.from).on('value', function(snap) {
             var u = snap.val() || {};
             avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
         });
         
-        var content = document.createElement('div');
-        content.style.cssText = 'max-width:70%;';
-        
-        var nameDiv = document.createElement('div');
-        nameDiv.style.cssText = 'font-size:11px;color:#999;margin-bottom:2px;';
-        nameDiv.innerHTML = (isOwner ? '<span class="group-owner-badge">群主</span>' : '') + (msg.fromName || msg.from);
-        if (isMine) nameDiv.style.textAlign = 'right';
-        
         var bubble = document.createElement('div');
         bubble.className = 'chat-msg-bubble';
-        bubble.style.cssText = isMine ? 'background:#cceeff;' : 'background:#fff;';
-        bubble.textContent = msg.text;
+        bubble.style.cssText = isMine ? 'background:#cceeff;border-top-right-radius:4px;' : 'background:#fff;border-top-left-radius:4px;';
         
-        content.appendChild(nameDiv);
-        content.appendChild(bubble);
+        var nameSpan = document.createElement('div');
+        nameSpan.style.cssText = 'font-size:11px;color:#999;margin-bottom:4px;';
+        nameSpan.innerHTML = (isOwner ? '<span class="group-owner-badge">群主</span> ' : '') + (msg.fromName || msg.from);
+        
+        bubble.appendChild(nameSpan);
+        bubble.appendChild(document.createTextNode(msg.text));
         
         if (isMine) {
-            row.appendChild(content);
+            row.appendChild(bubble);
             row.appendChild(avatar);
         } else {
             row.appendChild(avatar);
-            row.appendChild(content);
+            row.appendChild(bubble);
         }
+        
         container.appendChild(row);
     });
     container.scrollTop = container.scrollHeight;
