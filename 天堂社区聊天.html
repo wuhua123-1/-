@@ -1901,11 +1901,14 @@ function renderMsgList() {
         
         html += '<div class="msg-item" onclick="' + onclick + '" style="' + (pinnedChats[chat.id] ? 'background:#fffef5;' : '') + '">' +
             avatarHTML +
-            '<div class="msg-item-info"><div class="msg-item-name">' + pinIcon + chat.name + '</div><div class="msg-item-preview" id="status_' + chat.id + '">' + (chat.isRobot ? '你好，我是雾化机器人~' : '加载中...') + '</div></div>' +
+            '<div class="msg-item-info"><div class="msg-item-name">' + pinIcon + chat.name + '</div>' +
+'<div class="msg-item-preview" id="status_' + chat.id + '">' + (chat.isRobot ? '你好，我是雾化机器人~' : (chat.isGroup ? Object.keys(groups[chat.id].members||{}).length + '个成员' : '')) + '</div></div>' +
+'<div class="msg-item-time"></div></div>';
             '<div class="msg-item-time"></div></div>';
     });
     
     container.innerHTML = html;
+    
 };
 
 function startOnlineListener() {
@@ -2600,16 +2603,31 @@ function renderGroupChatMessages() {
             avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
         });
         
-        var bubble = document.createElement('div');
-        bubble.className = 'chat-msg-bubble';
-        bubble.style.cssText = isMine ? 'background:#cceeff;border-top-right-radius:4px;' : 'background:#fff;border-top-left-radius:4px;';
-        
-        var nameSpan = document.createElement('div');
-        nameSpan.style.cssText = 'font-size:11px;color:#999;margin-bottom:4px;';
-        nameSpan.innerHTML = (isOwner ? '<span class="group-owner-badge">群主</span> ' : '') + (msg.fromName || msg.from);
-        
-        bubble.appendChild(nameSpan);
-        bubble.appendChild(document.createTextNode(msg.text));
+    var bubble = document.createElement('div');
+bubble.className = 'chat-msg-bubble';
+bubble.style.cssText = isMine ? 'background:#cceeff;border-top-right-radius:4px;' : 'background:#fff;border-top-left-radius:4px;';
+
+var nameSpan = document.createElement('div');
+nameSpan.style.cssText = 'font-size:11px;color:#999;margin-bottom:4px;';
+nameSpan.innerHTML = (isOwner ? '<span class="group-owner-badge">群主</span> ' : '') + (msg.fromName || msg.from);
+
+bubble.appendChild(nameSpan);
+
+if (msg.type === 'image') {
+    var img = document.createElement('img');
+    img.src = msg.text;
+    img.style.cssText = 'max-width:200px;border-radius:8px;';
+    img.onclick = function() { viewFullImage(msg.text); };
+    bubble.appendChild(img);
+} else if (msg.type === 'video') {
+    var video = document.createElement('video');
+    video.src = msg.text;
+    video.controls = true;
+    video.style.cssText = 'max-width:200px;border-radius:8px;';
+    bubble.appendChild(video);
+} else {
+    bubble.appendChild(document.createTextNode(msg.text));
+}
         
         if (isMine) {
             row.appendChild(bubble);
