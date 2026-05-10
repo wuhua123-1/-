@@ -1210,9 +1210,41 @@
             <div class="msg-list" id="msgList"></div>
             <div class="bottom-nav">
                 <div class="bottom-nav-item active"><span class="nav-icon">💬</span>消息</div>
-                <div class="bottom-nav-item"><span class="nav-icon">👥</span>联系人</div>
+                <div class="bottom-nav-item" onclick="openContacts()"><span class="nav-icon">👥</span>联系人</div>
             </div>
         </div>
+        
+        
+<!-- 联系人页 -->
+<div class="page" id="contactsPage">
+    <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div class="chat-back" onclick="goBack()">←</div>
+        <span style="font-size:17px;font-weight:600;">联系人</span>
+    </div>
+    <div style="display:flex;gap:8px;padding:12px;background:#fff;">
+        <button onclick="showFriendRequests()" style="flex:1;padding:10px;background:#f5f5f5;border:none;border-radius:8px;font-size:14px;">新朋友</button>
+        <button onclick="showGroupNotices()" style="flex:1;padding:10px;background:#f5f5f5;border:none;border-radius:8px;font-size:14px;">群通知</button>
+    </div>
+    <div id="contactsList" style="flex:1;overflow-y:auto;background:#fff;"></div>
+</div>
+
+<!-- 新朋友页 -->
+<div class="page" id="friendRequestsPage">
+    <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div class="chat-back" onclick="navigateTo('contactsPage','slideBack')">←</div>
+        <span style="font-size:17px;font-weight:600;">新朋友</span>
+    </div>
+    <div id="friendRequestsList" style="flex:1;overflow-y:auto;background:#fff;"></div>
+</div>
+
+<!-- 群通知页 -->
+<div class="page" id="groupNoticesPage">
+    <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div class="chat-back" onclick="navigateTo('contactsPage','slideBack')">←</div>
+        <span style="font-size:17px;font-weight:600;">群通知</span>
+    </div>
+    <div id="groupNoticesList" style="flex:1;overflow-y:auto;background:#fff;"></div>
+</div>
 
         <!-- 聊天页 -->
    <!-- 聊天页 -->
@@ -1220,14 +1252,15 @@
     <div class="chat-header">
         <div class="chat-back" onclick="goBack()">←</div>
         <div class="chat-title" id="chatTitle">雾化机器人</div>
+        <div style="font-size:20px;cursor:pointer;padding:4px 8px;" onclick="openChatSettings()">≡</div>
     </div>
     <div class="chat-messages" id="chatMessages"></div>
-        <div class="chat-input-area">
-    <input type="file" accept="image/*,video/mp4" id="chatImageInput" style="display:none;" onchange="sendMedia()">
-    <button style="width:36px;height:36px;border-radius:50%;background:#f0f0f0;border:none;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" onclick="document.getElementById('chatImageInput').click()">+</button>
-    <input type="text" class="chat-input" id="chatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendMessage()">
-    <button class="chat-send-btn" onclick="sendMessage()">发送</button>
-</div>
+    <div class="chat-input-area">
+        <input type="file" accept="image/*,video/mp4" id="chatImageInput" style="display:none;" onchange="sendMedia()">
+        <button style="width:36px;height:36px;border-radius:50%;background:#f0f0f0;border:none;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" onclick="document.getElementById('chatImageInput').click()">+</button>
+        <input type="text" class="chat-input" id="chatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendMessage()">
+        <button class="chat-send-btn" onclick="sendMessage()">发送</button>
+    </div>
 </div>
         
 
@@ -1404,6 +1437,28 @@
     </div>
 </div>
 
+<div class="page" id="chatSettingsPage">
+    <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div class="chat-back" onclick="goBack()">←</div>
+        <span style="font-size:17px;font-weight:600;">聊天设置</span>
+    </div>
+    <div style="background:#fff;margin-top:10px;padding:0 16px;">
+        <div class="group-section-item" onclick="searchChatHistory()">查找聊天记录<span class="arrow">›</span></div>
+        <div class="group-section-item" onclick="togglePinChat()">设为置顶<span class="arrow">›</span></div>
+        <div class="group-section-item" onclick="hideChat()">隐藏会话<span class="arrow">›</span></div>
+        <div class="group-section-item" onclick="deleteFriend()" style="color:#f55;">删除好友<span class="arrow" style="color:#f55;">›</span></div>
+    </div>
+</div>
+
+<!-- 聊天记录搜索页 -->
+<div class="page" id="chatSearchPage">
+    <div style="display:flex;align-items:center;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e5;">
+        <div class="chat-back" onclick="goBack()">←</div>
+        <input type="text" id="chatSearchInput" placeholder="搜索聊天记录" style="flex:1;padding:8px;border:1px solid #e0e0e0;border-radius:20px;font-size:14px;" oninput="searchChatMessages()">
+    </div>
+    <div id="chatSearchResults" style="flex:1;overflow-y:auto;background:#fff;padding:12px;"></div>
+</div>
+
 <div class="page space-page" id="spacePage">
     <div style="display:flex;align-items:center;gap:12px;padding:16px;background:#fff;border-bottom:1px solid #e5e5e5;">
         <div style="font-size:22px;cursor:pointer;" onclick="goBackFromSpace()">←</div>
@@ -1423,7 +1478,7 @@
         <div class="space-menu-item" onclick="switchSpaceTab('visitors')">访客</div>
     </div>
     <div id="spacePostsContainer"></div>
-    <button class="space-post-btn" onclick="createNewPost()">+</button>
+    <button class="space-post-btn" id="spacePostBtn" onclick="createNewPost()">+</button>
 </div>
 
     <!-- 注册弹窗 -->
@@ -1497,6 +1552,7 @@ function loadSpaceProfile(uid) {
     db.ref('space_visitors/' + uid).once('value', function(snap) {
         document.getElementById('spaceVisitorCount').textContent = snap.numChildren();
     });
+    document.getElementById('spacePostBtn').style.display = (uid === userId) ? 'block' : 'none';
 }
 function switchSpaceTab(tab) {
     spaceCurrentTab = tab;
@@ -1544,8 +1600,13 @@ function loadSpacePosts(uid) {
                 imgsHtml = '<div class="space-post-images" style="grid-template-columns:repeat(' + cols + ',1fr);">' + p.images.map(function(img){ return '<img src="' + img + '" onclick="viewFullImage(\'' + img + '\')">'; }).join('') + '</div>';
             }
             var liked = p.likes && p.likes[userId];
-            html += '<div class="space-post"><div class="space-post-header"><div class="space-post-avatar">' + (p.avatar ? '<img src="' + p.avatar + '" style="width:100%;height:100%;object-fit:cover;">' : '👤') + '</div><div><div class="space-post-name">' + (p.nickname || p.uid) + '</div><div class="space-post-time">' + new Date(p.time).toLocaleString() + '</div></div></div>' +
-                '<div class="space-post-text">' + (p.text||'').replace(/@(\d+)/g, '<span style="color:#12b7f5;cursor:pointer;" onclick="viewUser(\'$1\')">@$1</span>') + '</div>' + imgsHtml +
+            html += '<div class="space-post"><div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+                '<div style="display:flex;align-items:center;gap:10px;">' +
+                '<div style="width:44px;height:44px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:22px;">' + (p.avatar ? '<img src="' + p.avatar + '" style="width:100%;height:100%;object-fit:cover;">' : '👤') + '</div>' +
+                '<div><div style="font-weight:600;font-size:15px;color:#1a1a1a;">' + (p.nickname || p.uid) + '</div><div style="font-size:12px;color:#999;">' + new Date(p.time).toLocaleString() + '</div></div></div>' +
+                (p.uid === userId ? '<div style="cursor:pointer;font-size:20px;color:#999;padding:4px;" onclick="deleteSpacePost(\'' + uid + '\',\'' + key + '\')">⋯</div>' : '') +
+                '</div>' +
+                '<div style="font-size:15px;color:#1a1a1a;margin-top:8px;line-height:1.6;">' + (p.text||'').replace(/@(\d+)/g, '<span style="color:#12b7f5;cursor:pointer;" onclick="viewUser(\'$1\')">@$1</span>') + '</div>' + imgsHtml +
                 '<div class="space-post-actions"><span ' + (liked?'class="liked"':'') + ' onclick="likeSpacePost(\'' + uid + '\',\'' + key + '\')">' + (liked?'❤️':'🤍') + ' <span>' + (p.likes?Object.keys(p.likes).length:0) + '</span></span><span onclick="showSpaceComments(\'' + uid + '\',\'' + key + '\')">💬 评论</span></div>' +
                 '<div class="space-comments" id="comments_' + key + '" style="display:none;"></div></div>';
         });
@@ -1774,7 +1835,6 @@ function renderMsgList() {
     });
 };
 
-// 一次性监听所有好友在线状态，不再单个请求
 function startOnlineListener() {
     db.ref('tth_users').on('value', function(snap) {
         var users = snap.val() || {};
@@ -1784,6 +1844,10 @@ function startOnlineListener() {
             var el = document.getElementById('status_' + fid);
             if (el) {
                 el.innerHTML = '<span class="online-dot" style="background:' + (isOnline ? '#07c160' : '#f55') + ';"></span>' + (isOnline ? '在线' : '离线');
+            }
+            var contactEl = document.getElementById('contactStatus_' + fid);
+            if (contactEl) {
+                contactEl.innerHTML = '<span class="online-dot" style="background:' + (isOnline ? '#07c160' : '#f55') + ';"></span>' + (isOnline ? '在线' : '离线');
             }
         });
     });
@@ -2276,21 +2340,33 @@ function goBackFromUserProfile() {
     navigateTo('msgListPage', 'slideBack'); 
 }
 
-        function addFriend() {
-            if (!viewingUser) return;
-            db.ref('tth_users/' + viewingUser).once('value', function(snap) {
-                var u = snap.val() || {};
-                friends[viewingUser] = { nickname: u.nickname || viewingUser, avatar: u.avatar || '', signature: u.signature || '',
-                    thId: viewingUser };
-                db.ref('tth_friends/' + userId + '/' + viewingUser).set(friends[viewingUser]);
-                db.ref('tth_friends/' + viewingUser + '/' + userId).set({ nickname: userData.nickname || userId, avatar: userData.avatar || '',
-                    signature: userData.signature || '', thId: userId });
-                alert('已添加 ' + (u.nickname || viewingUser) + ' 为好友！');
-                renderMsgList();
-                navigateTo('msgListPage', 'slideBack');
-            });
-        }
+ function addFriend() {
+    if (!viewingUser) return;
+    db.ref('friend_requests/' + viewingUser + '/' + userId).set({
+        from: userId,
+        nickname: userData.nickname || userId,
+        avatar: userData.avatar || '',
+        message: '请求加为好友',
+        source: '搜索',
+        time: Date.now()
+    });
+    alert('好友申请已发送');
+    navigateTo('msgListPage', 'slideBack');
+}
 
+window.acceptFriendRequest = function(key) {
+    db.ref('friend_requests/' + userId + '/' + key).once('value', function(snap) {
+        var r = snap.val();
+        if (r) {
+            friends[r.from] = { nickname: r.nickname || r.from, avatar: r.avatar || '', signature: '', thId: r.from };
+            db.ref('tth_friends/' + userId + '/' + r.from).set(friends[r.from]);
+            db.ref('tth_friends/' + r.from + '/' + userId).set({ nickname: userData.nickname || userId, avatar: userData.avatar || '', signature: userData.signature || '', thId: userId });
+            db.ref('friend_requests/' + userId + '/' + key).remove();
+            renderMsgList();
+            showFriendRequests();
+        }
+    });
+};
     
 
         init();
@@ -2397,10 +2473,10 @@ function renderGroupChatMessages() {
         avatar.className = 'chat-msg-avatar';
         avatar.onclick = function() { viewUser(msg.from); };
 avatar.style.cursor = 'pointer';
-        db.ref('tth_users/' + msg.from).once('value', function(snap) {
-            var u = snap.val() || {};
-            avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
-        });
+      db.ref('tth_users/' + msg.from).on('value', function(snap) {
+    var u = snap.val() || {};
+    avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
+});;
         
         var content = document.createElement('div');
         content.style.cssText = 'max-width:70%;';
@@ -2723,6 +2799,98 @@ function showSpaceIsland(msg) {
     island.textContent = msg;
     document.body.appendChild(island);
     setTimeout(function() { island.remove(); }, 4000);
+}
+function deleteSpacePost(uid, key) {
+    if (confirm('确定删除这条说说？')) {
+        db.ref('space_posts/' + uid + '/' + key).remove();
+        loadSpacePosts(spaceViewUser);
+    }
+}
+function openContacts() {
+    navigateTo('contactsPage', 'slideInRight');
+    renderContactsList();
+}
+
+function renderContactsList() {
+    var html = '<div style="display:flex;align-items:center;padding:14px 16px;gap:12px;cursor:pointer;" onclick="openProfile()">' +
+        '<div style="width:48px;height:48px;border-radius:50%;background:#e0e0e0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;">' + (userData.avatar ? '<img src="' + userData.avatar + '" style="width:100%;height:100%;object-fit:cover;">' : '👤') + '</div>' +
+        '<div><div style="font-size:16px;font-weight:500;">' + (userData.nickname || '天堂用户') + '</div><div style="font-size:12px;color:#999;">在线</div></div></div>';
+    Object.keys(friends).forEach(function(fid) {
+        var f = friends[fid];
+        html += '<div style="display:flex;align-items:center;padding:14px 16px;gap:12px;cursor:pointer;" onclick="viewUser(\'' + fid + '\')">' +
+            '<div style="width:48px;height:48px;border-radius:50%;background:#e0e0e0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;">' + (f.avatar ? '<img src="' + f.avatar + '" style="width:100%;height:100%;object-fit:cover;">' : '👤') + '</div>' +
+            '<div style="flex:1;"><div style="font-size:16px;font-weight:500;">' + (f.nickname || fid) + '</div><div style="font-size:12px;color:#999;" id="contactStatus_' + fid + '">加载中...</div></div>' +
+            '<div style="font-size:12px;color:#999;">' + (f.signature || '') + '</div></div>';
+    });
+    document.getElementById('contactsList').innerHTML = html || '<div style="text-align:center;padding:40px;color:#999;">暂无好友</div>';
+}
+
+// 好友申请
+window.showFriendRequests = function() {
+    navigateTo('friendRequestsPage', 'slideInRight');
+    db.ref('friend_requests/' + userId).once('value', function(snap) {
+        var requests = snap.val() || {};
+        var html = '';
+        Object.keys(requests).forEach(function(key) {
+            var r = requests[key];
+            html += '<div style="display:flex;align-items:center;padding:14px 16px;gap:12px;border-bottom:1px solid #f0f0f0;">' +
+                '<div style="width:48px;height:48px;border-radius:50%;background:#e0e0e0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;">' + (r.avatar ? '<img src="' + r.avatar + '" style="width:100%;height:100%;object-fit:cover;">' : '👤') + '</div>' +
+                '<div style="flex:1;"><div style="font-size:15px;font-weight:500;">' + (r.nickname || r.from) + '</div><div style="font-size:12px;color:#999;">' + r.message + '</div><div style="font-size:11px;color:#999;">来源：' + (r.source || '搜索') + '</div></div>' +
+                '<button onclick="acceptFriendRequest(\'' + key + '\')" style="padding:6px 16px;background:#07c160;color:#fff;border:none;border-radius:16px;font-size:13px;">同意</button></div>';
+        });
+        document.getElementById('friendRequestsList').innerHTML = html || '<div style="text-align:center;padding:40px;color:#999;">暂无好友申请</div>';
+    });
+};
+window.showGroupNotices = function() {
+    navigateTo('groupNoticesPage', 'slideInRight');
+    document.getElementById('groupNoticesList').innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无群通知</div>';
+};
+function openChatSettings() {
+    navigateTo('chatSettingsPage', 'slideInRight');
+}
+
+function searchChatHistory() {
+    navigateTo('chatSearchPage', 'slideInRight');
+}
+
+function searchChatMessages() {
+    var query = document.getElementById('chatSearchInput').value.trim().toLowerCase();
+    var msgs = chatMessages[currentChat] || {};
+    var results = [];
+    Object.keys(msgs).forEach(function(k) {
+        if (msgs[k].text && msgs[k].text.toLowerCase().indexOf(query) !== -1) {
+            results.push(msgs[k]);
+        }
+    });
+    var html = '';
+    results.forEach(function(msg) {
+        html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">' +
+            '<span style="color:#07c160;">' + (friends[currentChat] ? friends[currentChat].nickname || currentChat : currentChat) + '：</span>' +
+            '<span style="background:#fff3cd;padding:2px 4px;border-radius:4px;">' + msg.text + '</span>' +
+            '<div style="font-size:10px;color:#999;">' + new Date(msg.time).toLocaleString() + '</div></div>';
+    });
+    document.getElementById('chatSearchResults').innerHTML = html || '<div style="text-align:center;padding:40px;color:#999;">未找到相关消息</div>';
+}
+
+function togglePinChat() {
+    alert('置顶功能已开启');
+}
+
+function hideChat() {
+    if (confirm('确定隐藏此会话？')) {
+        document.querySelector('[onclick="openChat(\'' + currentChat + '\')"]').style.display = 'none';
+        goBack();
+    }
+}
+
+function deleteFriend() {
+    if (confirm('确定删除好友？')) {
+        db.ref('tth_friends/' + userId + '/' + currentChat).remove();
+        db.ref('tth_friends/' + currentChat + '/' + userId).remove();
+        delete friends[currentChat];
+        renderMsgList();
+        goBack();
+    }
 }
     </script>
 </body>
