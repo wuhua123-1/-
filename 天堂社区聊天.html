@@ -572,10 +572,9 @@
             max-width: 80%;
             align-items: flex-start;
         }
-        .chat-msg-row.mine {
-            align-self: flex-end;
-            flex-direction: row-reverse;
-        }
+.chat-msg-row.mine {
+    align-self: flex-end;
+}
         .chat-msg-row.other {
             align-self: flex-start;
         }
@@ -1498,6 +1497,8 @@
 
 
     <script>
+    
+var pinnedChats = JSON.parse(localStorage.getItem('tth_pinned_chats') || '{}');
         const firebaseConfig = {
             apiKey: "AIzaSyCk8WOSS3rOWjJwNvU0v__nuWyzo6BP9n58",
             authDomain: "wuhua666-335c1.firebaseapp.com",
@@ -1820,19 +1821,71 @@ function saveUserData() {
 
 function renderMsgList() {
     var container = document.getElementById('msgList');
-    var html = '<div class="msg-item" onclick="openChat(\'robot\')"><div class="msg-item-avatar">🤖</div><div class="msg-item-info"><div class="msg-item-name">雾化机器人</div><div class="msg-item-preview">你好，我是雾化机器人~</div></div><div class="msg-item-time"></div></div>';
+    var html = '';
+    
+    // 收集所有会话
+    var allChats = [];
+    
+    // 机器人
+    allChats.push({
+        id: 'robot',
+        name: '雾化机器人',
+        avatar: '🤖',
+        isRobot: true
+    });
+    
+    // 好友会话
     Object.keys(friends).forEach(function(fid) {
         var f = friends[fid];
-        html += '<div class="msg-item" onclick="openChat(\'' + fid + '\')"><div class="msg-item-avatar">' + (f.avatar ? '<img src="' + f.avatar + '">' : '👤') + '</div><div class="msg-item-info"><div class="msg-item-name">' + (f.nickname || fid) + '</div><div class="msg-item-preview" id="status_' + fid + '">加载中...</div></div><div class="msg-item-time"></div></div>';
+        allChats.push({
+            id: fid,
+            name: f.nickname || fid,
+            avatar: f.avatar || '',
+            isRobot: false
+        });
     });
-    container.innerHTML = html;
+    
+    // 群聊会话
     Object.keys(groups).forEach(function(gid) {
         var g = groups[gid];
         if (g.members && g.members[userId]) {
-            var ghtml = '<div class="msg-item" onclick="openGroupChat(\'' + gid + '\')"><div class="msg-item-avatar">👥</div><div class="msg-item-info"><div class="msg-item-name">' + (g.name || '群聊') + '</div><div class="msg-item-preview"></div></div><div class="msg-item-time"></div></div>';
-            container.innerHTML += ghtml;
+            allChats.push({
+                id: gid,
+                name: (g.name || '群聊') + '(' + Object.keys(g.members).length + ')',
+                avatar: '',
+                isGroup: true
+            });
         }
     });
+    
+    // 排序：置顶的排前面
+    allChats.sort(function(a, b) {
+        var aPinned = pinnedChats[a.id] ? 1 : 0;
+        var bPinned = pinnedChats[b.id] ? 1 : 0;
+        return bPinned - aPinned;
+    });
+    
+    // 渲染
+    allChats.forEach(function(chat) {
+        var avatarHTML = '';
+        if (chat.isGroup) {
+            avatarHTML = '<div class="msg-item-avatar">👥</div>';
+        } else if (chat.isRobot) {
+            avatarHTML = '<div class="msg-item-avatar">🤖</div>';
+        } else {
+            avatarHTML = '<div class="msg-item-avatar">' + (chat.avatar ? '<img src="' + chat.avatar + '">' : '👤') + '</div>';
+        }
+        
+        var pinIcon = pinnedChats[chat.id] ? ' 📌' : '';
+        var onclick = chat.isGroup ? 'openGroupChat(\'' + chat.id + '\')' : 'openChat(\'' + chat.id + '\')';
+        
+        html += '<div class="msg-item" onclick="' + onclick + '" style="' + (pinnedChats[chat.id] ? 'background:#fffef5;' : '') + '">' +
+            avatarHTML +
+            '<div class="msg-item-info"><div class="msg-item-name">' + pinIcon + chat.name + '</div><div class="msg-item-preview" id="status_' + chat.id + '">' + (chat.isRobot ? '你好，我是雾化机器人~' : '加载中...') + '</div></div>' +
+            '<div class="msg-item-time"></div></div>';
+    });
+    
+    container.innerHTML = html;
 };
 
 function startOnlineListener() {
@@ -2059,14 +2112,13 @@ window.setVIP = function() {
 };
               
 function openChat(target) {
-    currentChat = target;
-    // 清理旧聊天数据防止串号
-    chatMessages[target] = chatMessages[target] || {};
-    var name = target === 'robot' ? '雾化机器人' : (friends[target] ? friends[target].nickname || target : target);
-    document.getElementById('chatTitle').textContent = name;
-    navigateTo('chatPage', 'slideInRight');
-    loadAndRenderChat();
+    // 机器人直接放行
     if (target === 'robot') {
+        currentChat = target;
+        chatMessages[target] = chatMessages[target] || {};
+        document.getElementById('chatTitle').textContent = '雾化机器人';
+        navigateTo('chatPage', 'slideInRight');
+        loadAndRenderChat();
         setTimeout(function() {
             var chatPath = [userId, 'robot'].sort().join('_');
             db.ref('tth_chat/' + chatPath).once('value', function(snap) {
@@ -2076,7 +2128,27 @@ function openChat(target) {
                 }
             });
         }, 300);
+        return;
     }
+    
+    // 群聊放行
+    if (target && target.startsWith('group_')) {
+        openGroupChat(target);
+        return;
+    }
+    
+    // 检查是否是好友
+    if (!friends[target]) {
+        alert('请先添加好友后再发消息');
+        return;
+    }
+    
+    currentChat = target;
+    chatMessages[target] = chatMessages[target] || {};
+    var name = friends[target] ? friends[target].nickname || target : target;
+    document.getElementById('chatTitle').textContent = name;
+    navigateTo('chatPage', 'slideInRight');
+    loadAndRenderChat();
 }
 function loadAndRenderChat() {
     var chatPath = [userId, currentChat].sort().join('_');
@@ -2134,14 +2206,13 @@ if (msg.type === 'image') {
     bubble.textContent = msg.text;
 }
 if (isMine) {
-    row.style.justifyContent = 'flex-end';
-    row.appendChild(avatar);
     row.appendChild(bubble);
+    row.appendChild(avatar);
 } else {
     row.appendChild(avatar);
     row.appendChild(bubble);
 }
-        container.appendChild(row);
+      container.appendChild(row);
     });
     container.scrollTop = container.scrollHeight;
 }
@@ -2262,11 +2333,19 @@ function viewUser(uid) {
         document.getElementById('userProfileAvatar').innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
         document.getElementById('userProfileName').textContent = u.nickname || uid;
         document.getElementById('userProfileSignature').textContent = u.signature || '这个用户很懒，什么都没写';
-        document.getElementById('userProfileAddBtn').style.display = 'block';
-        var addBtn = document.getElementById('userProfileAddBtn').querySelector('button:first-child');
-        var msgBtn = document.getElementById('userProfileAddBtn').querySelector('button:last-child');
-        if (friends[uid]) { addBtn.style.display = 'none'; msgBtn.style.display = 'inline-block'; }
-        else { addBtn.style.display = 'inline-block'; msgBtn.style.display = 'none'; }
+      document.getElementById('userProfileAddBtn').style.display = 'block';
+var btnArea = document.getElementById('userProfileAddBtn');
+
+// 检查是否是好友，显示不同按钮
+if (friends[uid]) {
+    // 是好友：显示"发消息"和"天堂空间"
+    btnArea.innerHTML = '<button onclick="sendMessageToUser()" style="padding:10px 40px;background:#07c160;color:#fff;border:none;border-radius:20px;font-size:15px;">发消息</button>' +
+        '<button onclick="openSpaceView(\'' + uid + '\')" style="padding:10px 40px;background:#12b7f5;color:#fff;border:none;border-radius:20px;font-size:15px;margin-top:8px;display:block;margin-left:auto;margin-right:auto;">天堂空间</button>';
+} else {
+    // 不是好友：显示"加好友"和"天堂空间"
+    btnArea.innerHTML = '<button onclick="addFriend()" style="padding:10px 40px;background:#12b7f5;color:#fff;border:none;border-radius:20px;font-size:15px;">加好友</button>' +
+        '<button onclick="openSpaceView(\'' + uid + '\')" style="padding:10px 40px;background:#12b7f5;color:#fff;border:none;border-radius:20px;font-size:15px;margin-top:8px;display:block;margin-left:auto;margin-right:auto;">天堂空间</button>';
+}
         
         // 显示对方的VIP和靓号
         var vipArea = document.getElementById('userProfileVipArea');
@@ -2331,6 +2410,10 @@ window.sendMessageToUser = function() {
     if (!viewingUser) return;
     if (!friends[viewingUser]) {
         addFriendSilent(viewingUser);
+        // 加完好友后不直接打开聊天，而是返回到消息列表
+        alert('已添加好友，现在可以发消息了');
+        navigateTo('msgListPage', 'slideBack');
+        return;
     }
     openChat(viewingUser);
 };
@@ -2471,12 +2554,14 @@ function renderGroupChatMessages() {
         
         var avatar = document.createElement('div');
         avatar.className = 'chat-msg-avatar';
-        avatar.onclick = function() { viewUser(msg.from); };
-avatar.style.cursor = 'pointer';
-      db.ref('tth_users/' + msg.from).on('value', function(snap) {
-    var u = snap.val() || {};
-    avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
-});;
+        (function(from) {
+            avatar.onclick = function() { viewUser(from); };
+        })(msg.from);
+        avatar.style.cursor = 'pointer';
+        db.ref('tth_users/' + msg.from).on('value', function(snap) {
+            var u = snap.val() || {};
+            avatar.innerHTML = u.avatar ? '<img src="' + u.avatar + '">' : '👤';
+        });
         
         var content = document.createElement('div');
         content.style.cssText = 'max-width:70%;';
@@ -2494,13 +2579,17 @@ avatar.style.cursor = 'pointer';
         content.appendChild(nameDiv);
         content.appendChild(bubble);
         
-        if (isMine) { row.appendChild(content); row.appendChild(avatar); }
-        else { row.appendChild(avatar); row.appendChild(content); }
+        if (isMine) {
+            row.appendChild(content);
+            row.appendChild(avatar);
+        } else {
+            row.appendChild(avatar);
+            row.appendChild(content);
+        }
         container.appendChild(row);
     });
     container.scrollTop = container.scrollHeight;
 }
-
 function sendGroupMessage() {
     var input = document.getElementById('groupChatInput');
     if (!input) return;
@@ -2873,7 +2962,18 @@ function searchChatMessages() {
 }
 
 function togglePinChat() {
-    alert('置顶功能已开启');
+    if (pinnedChats[currentChat]) {
+        // 取消置顶
+        delete pinnedChats[currentChat];
+        alert('已取消置顶');
+    } else {
+        // 置顶
+        pinnedChats[currentChat] = true;
+        alert('已置顶');
+    }
+    localStorage.setItem('tth_pinned_chats', JSON.stringify(pinnedChats));
+    renderMsgList();
+    goBack();
 }
 
 function hideChat() {
@@ -2884,12 +2984,20 @@ function hideChat() {
 }
 
 function deleteFriend() {
-    if (confirm('确定删除好友？')) {
+    if (confirm('确定删除好友？删除后将无法直接发送消息，需要重新添加好友。')) {
         db.ref('tth_friends/' + userId + '/' + currentChat).remove();
         db.ref('tth_friends/' + currentChat + '/' + userId).remove();
         delete friends[currentChat];
+        
+        // 清理聊天记录
+        var chatPath = [userId, currentChat].sort().join('_');
+        db.ref('tth_chat/' + chatPath).remove();
+        delete chatMessages[currentChat];
+        
+        // 同步更新本地好友缓存和其他界面用到的 friends 引用
         renderMsgList();
         goBack();
+        alert('已删除好友');
     }
 }
     </script>
