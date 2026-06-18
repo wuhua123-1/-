@@ -1521,17 +1521,18 @@
     <script>
     
 var pinnedChats = JSON.parse(localStorage.getItem('tth_pinned_chats') || '{}');
-        const firebaseConfig = {
-            apiKey: "AIzaSyCk8WOSS3rOWjJwNvU0v__nuWyzo6BP9n58",
-            authDomain: "wuhua666-335c1.firebaseapp.com",
-            databaseURL: "https://wuhua666-335c1-default-rtdb.firebaseio.com",
-            projectId: "wuhua666-335c1",
-            storageBucket: "wuhua666-335c1.firebasestorage.app",
-            messagingSenderId: "533471509844",
-            appId: "1:533471509844:web:86c39cf365177b9f169cc1"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+ const firebaseConfig = {
+  apiKey: "AIzaSyCoMN_2JOcTfy0WfYcCb9ItrbrwuHRm2zk",
+  authDomain: "pangxie-d14ac.firebaseapp.com",
+  projectId: "pangxie-d14ac",
+  storageBucket: "pangxie-d14ac.firebasestorage.app",
+  messagingSenderId: "686256323969",
+  appId: "1:686256323969",
+  measurementId: "G-RJKL6Y8N7P"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 
         let userId = localStorage.getItem('tth_user_id');
         let userData = {};
