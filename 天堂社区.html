@@ -18,9 +18,40 @@ body{
 }
 .page{display: none;}
 .page-active{display: block;}
-/* 聊天页面默认显示 */
-.chat-page{padding-bottom:78px;display:block;}
+/* 首页选择页 */
+.select-page{
+  padding:38px 16px;
+  min-height:100vh;
+}
+.select-wrap{
+  max-width:520px;
+  margin:0 auto;
+}
+.select-title{
+  text-align:center;
+  font-size:17px;
+  color:#222;
+  margin-bottom:30px;
+  font-weight:normal;
+}
+.platform-item{
+  display:flex;
+  align-items:center;
+  background:#fff;
+  border-radius:12px;
+  padding:14px;
+  margin-bottom:16px;
+  box-shadow:0 1px 6px rgba(0,0,0.05);
+  cursor:pointer;
+}
+.plat-logo{
+  width:48px;height:48px;border-radius:50%;object-fit:cover;
+}
+.plat-text{margin-left:13px;}
+.plat-text h3{font-size:15px;color:#111;margin-bottom:3px;font-weight:normal;}
+.plat-text p{font-size:12px;color:#666;}
 /* 聊天头部导航 */
+.chat-page{padding-bottom:78px;}
 .top-header{
   background:#fff;height:48px;display:flex;align-items:center;padding:0 13px;position:sticky;top:0;z-index:99;
 }
@@ -35,19 +66,19 @@ body{
 .progress-done{color:#629e75;}
 .progress-undone{color:#969696;}
 .check-circle{
-  width:15px;height:15px;border-radius:50%;display:flex;align-items:center;font-size:9px;
+  width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;
 }
 .done-check{background:#629e75;color:#fff;}
 .undone-check{border:1px solid #969696;background:#fff;}
 /* 聊天容器 */
 .chat-box{padding:13px;min-height:calc(100vh - 202px);}
-/* 客服消息 靠左 */
+/* 买家消息 靠左布局 */
 .msg-left{
   display:flex;
   align-items:flex-start;
   margin-bottom:18px;
 }
-/* 用户我方靠右 */
+/* 我方靠右消息【重构布局，禁止留白自动撑开】 */
 .msg-right{
   display:flex;
   justify-content:flex-end;
@@ -60,7 +91,7 @@ body{
   width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;
 }
 .left-ava{margin-right:5px;}
-/* 消息内容盒子 */
+/* 消息内容盒子固定约束 */
 .msg-content{
   flex-shrink:0;
   max-width:75%;
@@ -71,12 +102,11 @@ body{
 }
 .msg-right .info-line{justify-content:flex-end;}
 .msg-right .nick-name,.msg-right .official-tag{display:none;}
-.msg-left .nick-name,.msg-left .official-tag{display:none;}
 .official-tag{
   background:#ffd269;color:#9c5e00;font-size:10px;padding:1px 5px;border-radius:3px;
 }
 .msg-time{font-size:10px;color:#b8b8b8;}
-/* 气泡 */
+/* 气泡样式：短句完整包裹、超长换行 */
 .bubble{
   width:fit-content;
   min-width:40px;
@@ -89,10 +119,10 @@ body{
   overflow-wrap:break-word;
 }
 .bubble-left{background:#ffffff;border-top-left-radius:3px;}
-.bubble-right{background:#ffe8d5;border-top-right-radius:3px;}
+.bubble-right{background:#ffe8d5;border-top-right-radius:4px;}
 .img-bubble{padding:6px;}
 .img-bubble img{max-width:180px;border-radius:8px;display:block;}
-/* 底部功能栏 */
+/* 底部按钮栏 */
 .func-bar{
   position:fixed;left:0;bottom:48px;width:100%;background:#fff;display:flex;padding:8px 6px;border-top:1px solid #eee;
 }
@@ -119,14 +149,33 @@ body{
 }
 #fileInput{display:none;}
 </style>
-<!-- 兼容版Firebase SDK，降低境外加载失败概率 -->
+<!-- 兼容版Firebase SDK（解决境外加载失败报错，稳定可用） -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
-<div class="chat-page" id="chatPage">
+<div class="page select-page page-active" id="pageSelect">
+  <div class="select-wrap">
+    <h2 class="select-title">请选择账号交易平台</h2>
+    <div class="platform-item" onclick="openChat()">
+      < img class="plat-logo" src="<a href=" ">< img src="https://s41.ax1x.com/2026/06/18/pm834JA.png" alt="pm834JA.png" border="0" /></a >">
+      <div class="plat-text">
+        <h3>螃蟹账号</h3>
+        <p>用于螃蟹账号交易</p >
+      </div>
+    </div>
+    <div class="platform-item">
+      < img class="plat-logo" src="https://s41.ax1x.com/2026/06/18/pm35Ij1.png">
+      <div class="plat-text">
+        <h3>盼之代售</h3>
+        <p>用于盼之账号交易</p >
+      </div>
+    </div>
+  </div>
+</div>
+<div class="page chat-page" id="chatPage">
   <div class="top-header">
-    <svg class="back-arrow" onclick="history.back()" viewBox="0 0 24 24" fill="#222">
+    <svg class="back-arrow" onclick="backSelect()" viewBox="0 0 24 24" fill="#222">
       <path d="M15.5 18L9 11.5 15.5 5l-1-1-7.5 7.5 7.5 7.5z"/>
     </svg>
     <div class="order-title">HJGEY2448和平精英</div>
@@ -188,21 +237,14 @@ body{
       < img class="out-icon" src="https://s41.ax1x.com/2026/06/18/pm3oAZ6.png">
     </div>
     <button class="send-btn" id="sendBtn">发送</button>
-    <input type="file" id="fileInput" accept="image/*">
+    <input type="file" id="fileInput" accept="image/*" style="display:none;">
   </div>
 </div>
 <script>
-// DOM缓存
-const chatBox = document.getElementById('chatBox');
-const inputMsg = document.getElementById('inputMsg');
-const sendBtn = document.getElementById('sendBtn');
-const iconGroup = document.querySelector('.icon-group');
-const albumBtn = document.getElementById('albumBtn');
-const fileInput = document.getElementById('fileInput');
-// 头像资源
-const userAvatar = "https://s41.ax1x.com/2026/06/18/pm35439.png";
-const serviceAvatar = "https://s41.ax1x.com/2026/06/18/pm3TIjs.png";
-// 获取时间
+const pageSel = document.getElementById('pageSelect');
+const pageChat = document.getElementById('chatPage');
+function openChat(){pageSel.classList.remove('page-active');pageChat.classList.add('page-active');}
+function backSelect(){pageChat.classList.remove('page-active');pageSel.classList.add('page-active');}
 function getTime(){
   let d=new Date();
   let m=String(d.getMonth()+1).padStart(2,'0');
@@ -211,43 +253,57 @@ function getTime(){
   let min=String(d.getMinutes()).padStart(2,'0');
   return `${m}/${day} ${h}:${min}`;
 }
-// 相册上传图片
-albumBtn.onclick = ()=> fileInput.click();
+const chatBox=document.getElementById('chatBox');
+const inputMsg=document.getElementById('inputMsg');
+const sendBtn=document.getElementById('sendBtn');
+const iconGroup=document.querySelector('.icon-group');
+const fileInput=document.getElementById('fileInput');
+const albumBtn=document.getElementById('albumBtn');
+const serviceAvatar="https://s41.ax1x.com/2026/06/18/pm3TIjs.png";
+const buyerAvatar="https://s41.ax1x.com/2026/06/18/pm35439.png";
+albumBtn.addEventListener('click',()=>fileInput.click());
 fileInput.addEventListener('change',e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = res=>{
-    const t = getTime();
-    // 图片存入云端数据库
+  let file=e.target.files[0];if(!file)return;
+  let reader=new FileReader();
+  reader.onload=function(e) {
+    let t=getTime();
+    // 图片上传云端
     db.collection("chat").doc("chat_001").collection("msg").add({
       type:"image",
-      text: res.target.result,
-      role:"user",
-      timeStr: t,
-      time: new Date()
+      text:e.target.result,
+      role:"service",
+      timeStr:t,
+      time:new Date()
     })
-    file.value = '';
-  }
+  };
   reader.readAsDataURL(file);
 })
-// 输入框切换按钮
-function toggleBtn(){
-  if(inputMsg.value.trim()){
-    iconGroup.style.display='none';
-    sendBtn.style.display='block';
-  }else{
-    iconGroup.style.display='flex';
-    sendBtn.style.display='none';
-  }
+// 本地渲染买家消息
+function sendBuyerMsg(txt){
+  let t=getTime();
+  chatBox.insertAdjacentHTML('beforeend',`
+  <div class="msg-left">
+    < img class="head-ava left-ava" src="${buyerAvatar}">
+    <div class="msg-content">
+      <div class="info-line">
+        <span class="nick-name">买家</span>
+        <span class="msg-time">${t}</span>
+      </div>
+      <div class="bubble bubble-left">${txt}</div>
+    </div>
+  </div>
+  `);
+  chatBox.scrollTop=chatBox.scrollHeight;
 }
-inputMsg.addEventListener('input', toggleBtn);
-inputMsg.addEventListener('keydown',e=>{
-  if(e.key==='Enter') sendUserMsg();
-})
-sendBtn.addEventListener('click', sendUserMsg);
+// 输入框切换发送按钮
+function toggleBtn(){
+  if (inputMsg.value.trim()){iconGroup.style.display='none';sendBtn.style.display='block';}
+  else{iconGroup.style.display='flex';sendBtn.style.display='none';}
+}
+inputMsg.addEventListener('input',toggleBtn);
+inputMsg.addEventListener('keydown',e=>{if(e.key==='Enter')sendServiceMsg();})
 
-// ========== 你的螃蟹Firebase服务器配置（已嵌入，直接对接数据库） ==========
+// ======================螃蟹账号Firebase服务器配置（已嵌入）======================
 const firebaseConfig = {
   apiKey: "AIzaSyCoMN_2JOcTfy0WfYcCb9ItrbrwuHRm2zk",
   authDomain: "pangxie-d14ac.firebaseapp.com",
@@ -261,7 +317,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const roomId = "chat_001";
 
-// 实时监听全量聊天记录，自动渲染客服/用户消息
+// 实时监听云端所有消息，自动渲染聊天框
 db.collection("chat").doc(roomId).collection("msg")
 .orderBy("time")
 .onSnapshot(snap=>{
@@ -270,57 +326,59 @@ db.collection("chat").doc(roomId).collection("msg")
     const d = doc.data();
     const t = d.timeStr;
     if(d.role === "user"){
-      // 用户自己消息
+      sendBuyerMsg(d.text);
+    }else if(d.role === "service"){
       if(d.type === "image"){
         chatBox.insertAdjacentHTML('beforeend',`
         <div class="msg-right">
           <div class="msg-content">
-            <div class="info-line"><span class="msg-time">${t}</span></div>
+            <div class="info-line">
+              <span class="nick-name">螃蟹交付专员-烟雨</span>
+              <span class="official-tag">官方</span>
+              <span class="msg-time">${t}</span>
+            </div>
             <div class="bubble bubble-right img-bubble">< img src="${d.text}"></div>
           </div>
-          < img class="head-ava" src="${userAvatar}">
-        </div>`);
+          < img class="head-ava" src="${serviceAvatar}">
+        </div>
+        `);
       }else{
         chatBox.insertAdjacentHTML('beforeend',`
         <div class="msg-right">
           <div class="msg-content">
-            <div class="info-line"><span class="msg-time">${t}</span></div>
+            <div class="info-line">
+              <span class="nick-name">螃蟹交付专员-烟雨</span>
+              <span class="official-tag">官方</span>
+              <span class="msg-time">${t}</span>
+            </div>
             <div class="bubble bubble-right">${d.text}</div>
           </div>
-          < img class="head-ava" src="${userAvatar}">
-        </div>`);
-      }
-    }else{
-      // 客服消息
-      chatBox.insertAdjacentHTML('beforeend',`
-      <div class="msg-left">
-        < img class="head-ava left-ava" src="${serviceAvatar}">
-        <div class="msg-content">
-          <div class="info-line"><span class="msg-time">${t}</span></div>
-          <div class="bubble bubble-left">${d.text}</div>
+          < img class="head-ava" src="${serviceAvatar}">
         </div>
-      </div>`);
+        `);
+      }
     }
   })
   chatBox.scrollTop = chatBox.scrollHeight;
 })
 
-// 用户发送文字消息，写入云端
-async function sendUserMsg(){
-  const txt = inputMsg.value.trim();
-  if(!txt) return;
-  const t = getTime();
-  // 写入数据库
+// 重写发送消息函数：发送文字同时存入你的云端服务器
+async function sendServiceMsg(){
+  let txt=inputMsg.value.trim();
+  if (!txt) return;
+  let t=getTime();
+  input.value = '';
+  toggleBtn();
+  // 写入云数据库
   await db.collection("chat").doc(roomId).collection("msg").add({
     type:"text",
-    text: txt,
-    role:"user",
-    timeStr: t,
-    time: new Date()
+    text:txt,
+    role:"service",
+    timeStr:t,
+    time:new Date()
   })
-  inputMsg.value = '';
-  toggleBtn();
 }
+sendBtn.addEventListener('click',sendServiceMsg);
 toggleBtn();
 </script>
 </body>
